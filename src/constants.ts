@@ -1,0 +1,39 @@
+export const PLAYER_COLORS = [
+  0xff0000, // Red
+  0x00ff00, // Green
+  0x0000ff, // Blue
+  0xffff00, // Yellow
+] as const;
+
+export const MAP_WIDTH = 150;
+export const MAP_HEIGHT = 80;
+
+// World generation
+export const WORLD_OCTAVES = 5;
+
+// Terrain elevation thresholds
+export const ELEVATION_THRESHOLDS = {
+  WATER: 0.4,
+  GRASS: 0.55,
+  FOREST: 0.75,
+} as const;
+
+// Zoom settings (higher = more zoomed in)
+export const MIN_ZOOM = 2;
+export const MAX_ZOOM = 10;
+export const ZOOM_DELTA = 0.1; // How much to zoom per scroll
+
+// Renderer settings
+export const MAP_SCALE_MULTIPLIER = 1.25; // Makes map larger than viewport
+export const HEX_BORDER_WIDTH = 0.1;
+export const HEX_BORDER_COLOR = 0x666666;
+
+// Minimap settings
+export const MINIMAP_WIDTH = 200;
+export const MINIMAP_OVERLAY_COLOR = 0x000000;
+export const MINIMAP_OVERLAY_ALPHA = 0.3;
+export const MINIMAP_BORDER_COLOR = 0x666666;
+
+// Transition settings
+export const TRANSITION_SPEED = 0.15;
+export const TRANSITION_THRESHOLD = 0.5;
