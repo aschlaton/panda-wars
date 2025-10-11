@@ -309,9 +309,12 @@ export function generateSettlements(world: WorldGrid, playerPositions: Position[
       }
 
       // Place settlement
-      world[row][col].building = new Settlement(neutralFaction);
+      const pos = { x: col, y: row };
+      const settlement = new Settlement(neutralFaction, pos);
+      world[row][col].building = settlement;
+      neutralFaction.addBuilding(settlement);
 
-      settlements.push({ x: col, y: row });
+      settlements.push(pos);
       placedForPlayer++;
     }
   }
@@ -338,8 +341,11 @@ export function generateSettlements(world: WorldGrid, playerPositions: Position[
     }
 
     // Place settlement
-    tile.building = new Settlement(neutralFaction);
+    const pos = { x: col, y: row };
+    const settlement = new Settlement(neutralFaction, pos);
+    tile.building = settlement;
+    neutralFaction.addBuilding(settlement);
 
-    settlements.push({ x: col, y: row });
+    settlements.push(pos);
   }
 }

@@ -13,6 +13,7 @@ export enum CombatType {
 export abstract class Unit {
   public type: string;
   public faction: Faction;
+  public position: { x: number; y: number };
   public health: number;
   public maxHealth: number;
   public attack: number;
@@ -25,6 +26,7 @@ export abstract class Unit {
 
   constructor(
     faction: Faction,
+    position: { x: number; y: number },
     type: string,
     health: number,
     attack: number,
@@ -36,6 +38,7 @@ export abstract class Unit {
     canAttack: boolean = true
   ) {
     this.faction = faction;
+    this.position = position;
     this.type = type;
     this.health = health;
     this.maxHealth = health;

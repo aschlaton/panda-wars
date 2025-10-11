@@ -15,6 +15,8 @@ import {
 export class Renderer {
   public app: PIXI.Application;
   private worldContainer: PIXI.Container;
+  private terrainContainer: PIXI.Container;
+  private dynamicContainer: PIXI.Container;
   private zoomLevel: number = MIN_ZOOM;
   private mapWidth: number = 0;
   private mapHeight: number = 0;
@@ -22,10 +24,17 @@ export class Renderer {
   private targetX: number = 0;
   private targetY: number = 0;
   private isTransitioning: boolean = false;
+  private hexRadius: number = 0;
+  private hexWidth: number = 0;
+  private terrainRendered: boolean = false;
 
   constructor() {
     this.app = new PIXI.Application();
     this.worldContainer = new PIXI.Container();
+    this.terrainContainer = new PIXI.Container();
+    this.dynamicContainer = new PIXI.Container();
+    this.worldContainer.addChild(this.terrainContainer);
+    this.worldContainer.addChild(this.dynamicContainer);
     this.minimap = new Minimap();
   }
 
@@ -169,98 +178,119 @@ export class Renderer {
     graphics.poly(points);
   }
 
-  render(state: GameState): void {
-    if (!state.world) return;
+  private renderTerrain(state: GameState): void {
+    const cols = state.mapWidth;
+    const rows = state.mapHeight;
 
-    // Clear previous render
-    this.worldContainer.removeChildren();
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const tile = state.world![row][col];
+        const x = col * this.hexWidth + (row % 2) * (this.hexWidth / 2) + this.hexWidth / 2;
+        const y = row * (this.hexRadius * 1.5) + this.hexRadius;
 
-    // Set initial zoom
-    this.worldContainer.scale.set(this.zoomLevel);
+        const terrain = new PIXI.Graphics();
+        const color = TERRAIN_INFO[tile.terrainType].color;
+        this.drawHexagon(terrain, x, y, this.hexRadius);
+        terrain.fill(color);
+        terrain.stroke({ width: HEX_BORDER_WIDTH, color: HEX_BORDER_COLOR });
+        this.terrainContainer.addChild(terrain);
+      }
+    }
+  }
+
+  private renderDynamic(state: GameState): void {
+    // Clear dynamic layer
+    this.dynamicContainer.removeChildren();
 
     const cols = state.mapWidth;
     const rows = state.mapHeight;
 
-    // Total width = cols*sqrt(3)*radius + 0.5*sqrt(3)*radius
-    // Total height = rows*1.5*radius + 0.5*radius
-
-    const widthNeeded = cols * Math.sqrt(3) + 0.5 * Math.sqrt(3); // in terms of radius
-    const heightNeeded = rows * 1.5 + 0.5; // in terms of radius
-
-    const hexRadiusForWidth = window.innerWidth / widthNeeded;
-    const hexRadiusForHeight = window.innerHeight / heightNeeded;
-
-    const hexRadius = Math.max(hexRadiusForWidth, hexRadiusForHeight) * MAP_SCALE_MULTIPLIER;
-    const hexWidth = Math.sqrt(3) * hexRadius;
-
-    this.mapWidth = cols * hexWidth + hexWidth / 2;
-
-    this.mapHeight = rows * hexRadius * 1.5 + hexRadius * 0.5;
-
-    this.minimap.resize(this.mapWidth, this.mapHeight);
-    this.minimap.render(state.world, hexRadius, hexWidth, cols, rows);
-
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
-        const tile = state.world[row][col];
-        const graphics = new PIXI.Graphics();
+        const tile = state.world![row][col];
+        const x = col * this.hexWidth + (row % 2) * (this.hexWidth / 2) + this.hexWidth / 2;
+        const y = row * (this.hexRadius * 1.5) + this.hexRadius;
 
-        const x = col * hexWidth + (row % 2) * (hexWidth / 2) + hexWidth / 2;
-        const y = row * (hexRadius * 1.5) + hexRadius;
+        // Render building
+        if (tile.building) {
+          const building = new PIXI.Graphics();
 
-        const color = TERRAIN_INFO[tile.terrainType].color;
-        this.drawHexagon(graphics, x, y, hexRadius);
-        graphics.fill(color);
-        graphics.stroke({ width: HEX_BORDER_WIDTH, color: HEX_BORDER_COLOR });
+          if (tile.building.type === 'capital') {
+            const buildingColor = tile.building.faction.color;
 
-        this.worldContainer.addChild(graphics);
-      }
-    }
+            const points = 5;
+            const outerRadius = this.hexRadius * 0.7;
+            const innerRadius = this.hexRadius * 0.35;
+            const starPoints: number[] = [];
 
-    // Render buildings
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const tile = state.world[row][col];
-        if (!tile.building) continue;
+            for (let i = 0; i < points * 2; i++) {
+              const radius = i % 2 === 0 ? outerRadius : innerRadius;
+              const angle = (Math.PI / points) * i - Math.PI / 2;
+              starPoints.push(x + radius * Math.cos(angle));
+              starPoints.push(y + radius * Math.sin(angle));
+            }
 
-        const x = col * hexWidth + (row % 2) * (hexWidth / 2) + hexWidth / 2;
-        const y = row * (hexRadius * 1.5) + hexRadius;
-
-        const building = new PIXI.Graphics();
-
-        if (tile.building.type === 'capital') {
-          // Capital: large star
-          const color = tile.building.faction.color;
-
-          // Draw star
-          const points = 5;
-          const outerRadius = hexRadius * 0.7;
-          const innerRadius = hexRadius * 0.35;
-          const starPoints: number[] = [];
-
-          for (let i = 0; i < points * 2; i++) {
-            const radius = i % 2 === 0 ? outerRadius : innerRadius;
-            const angle = (Math.PI / points) * i - Math.PI / 2;
-            starPoints.push(x + radius * Math.cos(angle));
-            starPoints.push(y + radius * Math.sin(angle));
+            building.poly(starPoints);
+            building.fill(buildingColor);
+            building.stroke({ width: this.hexRadius * 0.1, color: 0xffffff });
+          } else if (tile.building.type === 'settlement') {
+            const size = this.hexRadius * 0.5;
+            building.rect(x - size / 2, y - size / 2, size, size);
+            building.fill(0xaaaaaa);
+            building.stroke({ width: this.hexRadius * 0.08, color: 0x666666 });
           }
 
-          building.poly(starPoints);
-          building.fill(color);
-          building.stroke({ width: hexRadius * 0.1, color: 0xffffff });
-        } else if (tile.building.type === 'settlement') {
-          // Settlement: gray square
-          const size = hexRadius * 0.5;
-          building.rect(x - size / 2, y - size / 2, size, size);
-          building.fill(0xaaaaaa);
-          building.stroke({ width: hexRadius * 0.08, color: 0x666666 });
+          this.dynamicContainer.addChild(building);
         }
 
-        this.worldContainer.addChild(building);
+        // Render unit
+        if (tile.unit) {
+          const unit = new PIXI.Graphics();
+          const unitColor = tile.unit.faction.color;
+
+          const unitRadius = this.hexRadius * 0.4;
+          unit.circle(x, y, unitRadius);
+          unit.fill(unitColor);
+          unit.stroke({ width: this.hexRadius * 0.06, color: 0xffffff });
+
+          this.dynamicContainer.addChild(unit);
+        }
       }
     }
+  }
 
-    // Initial minimap viewport update
-    this.minimap.updateViewport(this.worldContainer.x, this.worldContainer.y, this.zoomLevel, this.mapWidth, this.mapHeight);
+  render(state: GameState): void {
+    if (!state.world) return;
+
+    // Calculate hex dimensions if not done yet
+    if (!this.terrainRendered) {
+      this.worldContainer.scale.set(this.zoomLevel);
+
+      const cols = state.mapWidth;
+      const rows = state.mapHeight;
+
+      const widthNeeded = cols * Math.sqrt(3) + 0.5 * Math.sqrt(3);
+      const heightNeeded = rows * 1.5 + 0.5;
+
+      const hexRadiusForWidth = window.innerWidth / widthNeeded;
+      const hexRadiusForHeight = window.innerHeight / heightNeeded;
+
+      this.hexRadius = Math.max(hexRadiusForWidth, hexRadiusForHeight) * MAP_SCALE_MULTIPLIER;
+      this.hexWidth = Math.sqrt(3) * this.hexRadius;
+
+      this.mapWidth = cols * this.hexWidth + this.hexWidth / 2;
+      this.mapHeight = rows * this.hexRadius * 1.5 + this.hexRadius * 0.5;
+
+      // Render terrain once
+      this.renderTerrain(state);
+      this.terrainRendered = true;
+
+      this.minimap.resize(this.mapWidth, this.mapHeight);
+      this.minimap.render(state.world, this.hexRadius, this.hexWidth, cols, rows);
+      this.minimap.updateViewport(this.worldContainer.x, this.worldContainer.y, this.zoomLevel, this.mapWidth, this.mapHeight);
+    }
+
+    // Render dynamic content every frame
+    this.renderDynamic(state);
   }
 }

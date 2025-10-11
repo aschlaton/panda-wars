@@ -14,22 +14,25 @@ export function getHexNeighbors(pos: Position, mapWidth: number, mapHeight: numb
 
   const isOddRow = row % 2 === 1;
 
+  // For odd-row offset pointy-top hexagons (odd rows shift right by 0.5 hex):
+  // Even rows (0, 2, 4...): diagonal neighbors at col±1
+  // Odd rows (1, 3, 5...): NE/SE at col+1, NW/SW at same col
   const offsets = isOddRow
     ? [
-        { dx: 0, dy: -1 },  // Top
-        { dx: 1, dy: -1 },  // Top-right
-        { dx: 1, dy: 0 },   // Bottom-right
-        { dx: 0, dy: 1 },   // Bottom
-        { dx: -1, dy: 0 },  // Bottom-left
-        { dx: -1, dy: -1 }, // Top-left
+        { dx: 1, dy: -1 },  // NE (Northeast)
+        { dx: 1, dy: 0 },   // E (East)
+        { dx: 1, dy: 1 },   // SE (Southeast)
+        { dx: 0, dy: 1 },   // SW (Southwest) - same col for odd rows
+        { dx: -1, dy: 0 },  // W (West)
+        { dx: 0, dy: -1 },  // NW (Northwest) - same col for odd rows
       ]
     : [
-        { dx: 0, dy: -1 },  // Top
-        { dx: 1, dy: 0 },   // Top-right
-        { dx: 1, dy: 1 },   // Bottom-right
-        { dx: 0, dy: 1 },   // Bottom
-        { dx: -1, dy: 1 },  // Bottom-left
-        { dx: -1, dy: 0 },  // Top-left
+        { dx: 0, dy: -1 },  // NE (Northeast) - same col for even rows
+        { dx: 1, dy: 0 },   // E (East)
+        { dx: 0, dy: 1 },   // SE (Southeast) - same col for even rows
+        { dx: -1, dy: 1 },  // SW (Southwest)
+        { dx: -1, dy: 0 },  // W (West)
+        { dx: -1, dy: -1 }, // NW (Northwest)
       ];
 
   for (const { dx, dy } of offsets) {

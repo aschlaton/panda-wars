@@ -8,23 +8,26 @@ import { getHexNeighbors } from '../utils/hexUtils';
 export abstract class Building {
   public type: string;
   public faction: Faction;
+  public position: Position;
   public defenseMultiplier: number;
   public productionInterval: number | null; // null means no production
   public productionTicker: number;
 
-  constructor(type: string, faction: Faction, defenseMultiplier: number, productionInterval: number | null, initialTicker: number) {
+  constructor(type: string, faction: Faction, position: Position, defenseMultiplier: number, productionInterval: number | null, initialTicker: number) {
     this.type = type;
     this.faction = faction;
+    this.position = position;
     this.defenseMultiplier = defenseMultiplier;
     this.productionInterval = productionInterval;
     this.productionTicker = initialTicker;
   }
 
   // Override this method in subclasses to define what troops to produce
-  protected abstract generateTroop(world: WorldGrid, position: Position, faction: Faction): Unit | null;
+  // Returns { troop, spawnPos } if successful, null otherwise
+  protected abstract generateTroop(world: WorldGrid, position: Position, faction: Faction): { troop: Unit; spawnPos: Position } | null;
 
   // Attempt to produce a troop
-  public processTurn(world: WorldGrid, position: Position): Unit | null {
+  public processTurn(world: WorldGrid): Unit | null {
     if (this.productionInterval === null) return null;
 
     // Decrement ticker
@@ -34,18 +37,19 @@ export abstract class Building {
     }
 
     // Try to spawn troop
-    const troop = this.generateTroop(world, position, this.faction);
+    const result = this.generateTroop(world, this.position, this.faction);
 
-    if (troop) {
+    if (result) {
+      const { troop } = result;
       // Successfully spawned, add to faction and reset ticker
       this.faction.addUnit(troop);
       this.productionTicker = this.productionInterval;
+      return troop;
     } else {
       // Failed to spawn, keep ticker at 1 to try again next turn
       this.productionTicker = 1;
+      return null;
     }
-
-    return troop;
   }
 
   // Find a valid spawn position (building tile first, then neighbors)

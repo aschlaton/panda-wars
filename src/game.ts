@@ -4,11 +4,14 @@ import { generateWorld, generateStartingPositions, generateSettlements } from '.
 import { MAP_WIDTH, MAP_HEIGHT, FACTION_COLORS, WORLD_OCTAVES } from './constants';
 import { Capital } from './buildings/buildingTypes';
 import { Faction } from './faction/Faction';
+import { processGameTurn } from './turns/turnSystem';
 
 export class Game {
   private renderer: Renderer;
   private state: GameState;
   private needsRender: boolean = false;
+  private turnTimer: number = 0;
+  private readonly TURN_INTERVAL: number = 60; // Turns every 60 frames (1 second at 60fps)
 
   constructor(renderer: Renderer) {
     this.renderer = renderer;
@@ -38,7 +41,20 @@ export class Game {
 
   private update(): void {
     if (!this.state.worldGenerated) return;
-    // TODO: Game simulation logic
+
+    // Process game turns
+    this.turnTimer++;
+    if (this.turnTimer >= this.TURN_INTERVAL) {
+      this.turnTimer = 0;
+      this.processTurn();
+    }
+  }
+
+  private processTurn(): void {
+    if (!this.state.world) return;
+
+    processGameTurn(this.state.factions, this.state.world);
+    this.needsRender = true;
   }
 
   generateWorld(): void {
@@ -54,7 +70,9 @@ export class Game {
     // Place capitals at faction starting positions
     for (const faction of this.state.factions) {
       const { x, y } = faction.startPosition;
-      this.state.world[y][x].building = new Capital(faction);
+      const capital = new Capital(faction, faction.startPosition);
+      this.state.world[y][x].building = capital;
+      faction.addBuilding(capital);
     }
 
     // Generate neutral settlements (6 guaranteed per player faction + ~21 random)

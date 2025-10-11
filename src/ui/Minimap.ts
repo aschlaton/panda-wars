@@ -200,31 +200,43 @@ export class Minimap {
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         const tile = world[row][col];
-        if (!tile.building) continue;
-
         const x = col * hexWidth + (row % 2) * (hexWidth / 2) + hexWidth / 2;
         const y = row * (hexRadius * 1.5) + hexRadius;
 
         const minimapX = x * minimapScale;
         const minimapY = y * minimapScale;
 
-        const marker = new PIXI.Graphics();
+        // Render buildings
+        if (tile.building) {
+          const marker = new PIXI.Graphics();
 
-        if (tile.building.type === 'capital') {
-          // Capital: larger colored circle
-          const color = tile.building.faction.color;
+          if (tile.building.type === 'capital') {
+            // Capital: larger colored circle
+            const color = tile.building.faction.color;
 
-          marker.circle(minimapX, minimapY, hexRadius * minimapScale * 2.5);
-          marker.fill(color);
-          marker.stroke({ width: hexRadius * minimapScale * 0.6, color: 0xffffff });
-        } else if (tile.building.type === 'settlement') {
-          // Settlement: smaller white circle
-          marker.circle(minimapX, minimapY, hexRadius * minimapScale * 1.5);
-          marker.fill(0xffffff);
-          marker.stroke({ width: hexRadius * minimapScale * 0.4, color: 0x888888 });
+            marker.circle(minimapX, minimapY, hexRadius * minimapScale * 2.5);
+            marker.fill(color);
+            marker.stroke({ width: hexRadius * minimapScale * 0.6, color: 0xffffff });
+          } else if (tile.building.type === 'settlement') {
+            // Settlement: smaller white circle
+            marker.circle(minimapX, minimapY, hexRadius * minimapScale * 1.5);
+            marker.fill(0xffffff);
+            marker.stroke({ width: hexRadius * minimapScale * 0.4, color: 0x888888 });
+          }
+
+          this.container.addChild(marker);
         }
 
-        this.container.addChild(marker);
+        // Render units (on top of buildings)
+        if (tile.unit) {
+          const unitMarker = new PIXI.Graphics();
+          const color = tile.unit.faction.color;
+
+          unitMarker.circle(minimapX, minimapY, hexRadius * minimapScale * 1.0);
+          unitMarker.fill(color);
+
+          this.container.addChild(unitMarker);
+        }
       }
     }
   }
