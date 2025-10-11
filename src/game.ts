@@ -5,6 +5,8 @@ import { MAP_WIDTH, MAP_HEIGHT, FACTION_COLORS, WORLD_OCTAVES } from './constant
 import { Capital } from './buildings/buildingTypes';
 import { Faction } from './faction/Faction';
 import { processGameTurn } from './turns/turnSystem';
+import { ClaudeRushStrategy } from './strategy/claude_rush';
+import { PassStrategy } from './strategy/pass';
 
 export class Game {
   private renderer: Renderer;
@@ -64,11 +66,18 @@ export class Game {
     // Generate starting positions for factions
     const startingPositions = generateStartingPositions(this.state.world, FACTION_COLORS.length);
 
-    // Initialize player factions with starting positions
-    this.state.factions = FACTION_COLORS.map((color, id) => new Faction(id, color, startingPositions[id]));
+    // Initialize factions with starting positions and AI strategy
+    const rushStrategy = new ClaudeRushStrategy();
+    this.state.factions = FACTION_COLORS.map((color, id) => new Faction(id, color, startingPositions[id], rushStrategy));
+
+    // Create neutral faction (pass strategy = buildings produce but units don't move, fixed 0.5 food score)
+    const passStrategy = new PassStrategy();
+    const neutralFaction = new Faction(-1, 0x808080, { x: 0, y: 0 }, passStrategy, true);
+    this.state.factions.push(neutralFaction);
 
     // Place capitals at faction starting positions
     for (const faction of this.state.factions) {
+      if (faction === neutralFaction) continue; // Skip neutral faction
       const { x, y } = faction.startPosition;
       const capital = new Capital(faction, faction.startPosition);
       this.state.world[y][x].building = capital;
@@ -76,7 +85,7 @@ export class Game {
     }
 
     // Generate neutral settlements (6 guaranteed per player faction + ~21 random)
-    generateSettlements(this.state.world, startingPositions, 45);
+    generateSettlements(this.state.world, startingPositions, 45, neutralFaction);
 
     this.state.worldGenerated = true;
     this.needsRender = true;

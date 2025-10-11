@@ -214,10 +214,10 @@ export class Renderer {
         // Render building
         if (tile.building) {
           const building = new PIXI.Graphics();
+          const buildingColor = tile.building.faction.color;
 
           if (tile.building.type === 'capital') {
-            const buildingColor = tile.building.faction.color;
-
+            // Capital: large star
             const points = 5;
             const outerRadius = this.hexRadius * 0.7;
             const innerRadius = this.hexRadius * 0.35;
@@ -233,11 +233,39 @@ export class Renderer {
             building.poly(starPoints);
             building.fill(buildingColor);
             building.stroke({ width: this.hexRadius * 0.1, color: 0xffffff });
-          } else if (tile.building.type === 'settlement') {
+          } else if (tile.building.type === 'barracks') {
+            // Barracks: square
             const size = this.hexRadius * 0.5;
             building.rect(x - size / 2, y - size / 2, size, size);
-            building.fill(0xaaaaaa);
-            building.stroke({ width: this.hexRadius * 0.08, color: 0x666666 });
+            building.fill(buildingColor);
+            building.stroke({ width: this.hexRadius * 0.08, color: 0xffffff });
+          } else if (tile.building.type === 'archery_range') {
+            // Archery Range: triangle
+            const size = this.hexRadius * 0.6;
+            building.poly([
+              x, y - size / 2,
+              x + size / 2, y + size / 2,
+              x - size / 2, y + size / 2
+            ]);
+            building.fill(buildingColor);
+            building.stroke({ width: this.hexRadius * 0.08, color: 0xffffff });
+          } else if (tile.building.type === 'monastery') {
+            // Monastery: diamond
+            const size = this.hexRadius * 0.5;
+            building.poly([
+              x, y - size,
+              x + size, y,
+              x, y + size,
+              x - size, y
+            ]);
+            building.fill(buildingColor);
+            building.stroke({ width: this.hexRadius * 0.08, color: 0xffffff });
+          } else if (tile.building.type === 'farm') {
+            // Farm: small square
+            const size = this.hexRadius * 0.4;
+            building.rect(x - size / 2, y - size / 2, size, size);
+            building.fill(buildingColor);
+            building.stroke({ width: this.hexRadius * 0.08, color: 0xffffff });
           }
 
           this.dynamicContainer.addChild(building);

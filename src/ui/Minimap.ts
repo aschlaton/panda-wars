@@ -209,19 +209,18 @@ export class Minimap {
         // Render buildings
         if (tile.building) {
           const marker = new PIXI.Graphics();
+          const color = tile.building.faction.color;
 
           if (tile.building.type === 'capital') {
             // Capital: larger colored circle
-            const color = tile.building.faction.color;
-
+            marker.circle(minimapX, minimapY, hexRadius * minimapScale * 3.5);
+            marker.fill(color);
+            marker.stroke({ width: hexRadius * minimapScale * 0.8, color: 0xffffff });
+          } else {
+            // All other buildings: medium colored circles
             marker.circle(minimapX, minimapY, hexRadius * minimapScale * 2.5);
             marker.fill(color);
             marker.stroke({ width: hexRadius * minimapScale * 0.6, color: 0xffffff });
-          } else if (tile.building.type === 'settlement') {
-            // Settlement: smaller white circle
-            marker.circle(minimapX, minimapY, hexRadius * minimapScale * 1.5);
-            marker.fill(0xffffff);
-            marker.stroke({ width: hexRadius * minimapScale * 0.4, color: 0x888888 });
           }
 
           this.container.addChild(marker);

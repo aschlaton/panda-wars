@@ -34,8 +34,30 @@ export function executeAttack(
     // If attacker survived, move to defender's tile
     if (result.attackerSurvived) {
       const attackerTile = world[attackerPos.y][attackerPos.x];
+
+      // Check if leaving a farm
+      if (attackerTile.building?.type === 'farm' && attackerTile.building.faction === attacker.faction) {
+        attacker.faction.onFarmUnoccupied();
+      }
+
       attackerTile.unit = undefined;
       defenderTile.unit = attacker;
+      attacker.position = defenderPos;
+
+      // Capture building if present
+      if (defenderTile.building && defenderTile.building.faction !== attacker.faction) {
+        const building = defenderTile.building;
+        const oldFaction = building.faction;
+        oldFaction.removeBuilding(building);
+        building.faction = attacker.faction;
+        building.position = defenderPos;
+        attacker.faction.addBuilding(building);
+      }
+
+      // Check if occupying a farm
+      if (defenderTile.building?.type === 'farm' && defenderTile.building.faction === attacker.faction) {
+        attacker.faction.onFarmOccupied();
+      }
     }
   }
 

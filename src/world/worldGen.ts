@@ -2,7 +2,7 @@ import { TerrainType, type WorldGrid } from './terrain';
 import { ELEVATION_THRESHOLDS } from '../constants';
 import type { Position } from '../types';
 import { Faction } from '../faction/Faction';
-import { Settlement } from '../buildings/buildingTypes';
+import { Farm, Barracks, ArcheryRange, Monastery } from '../buildings/buildingTypes';
 
 // Generate random 2D gradient vector
 function generateGradient(): [number, number] {
@@ -245,24 +245,53 @@ export function generateStartingPositions(world: WorldGrid, numPlayers: number =
   return positions;
 }
 
-// Generate neutral settlements across the map
-export function generateSettlements(world: WorldGrid, playerPositions: Position[], targetCount: number = 45): void {
+/**
+ * Select a random building type based on terrain.
+ */
+function selectBuildingType(terrainType: TerrainType): 'barracks' | 'archery_range' | 'monastery' {
+  const roll = Math.random() * 100;
+
+  switch (terrainType) {
+    case TerrainType.Grass:
+      // 50% Barracks, 25% Archery Range, 25% Monastery
+      if (roll < 50) return 'barracks';
+      if (roll < 75) return 'archery_range';
+      return 'monastery';
+
+    case TerrainType.Forest:
+      // 50% Archery Range, 25% Barracks, 25% Monastery
+      if (roll < 50) return 'archery_range';
+      if (roll < 75) return 'barracks';
+      return 'monastery';
+
+    case TerrainType.Mountain:
+      // 50% Monastery, 25% Barracks, 25% Archery Range
+      if (roll < 50) return 'monastery';
+      if (roll < 75) return 'barracks';
+      return 'archery_range';
+
+    default:
+      // Water or unknown - default to random
+      const types: ('barracks' | 'archery_range' | 'monastery')[] = ['barracks', 'archery_range', 'monastery'];
+      return types[Math.floor(Math.random() * types.length)];
+  }
+}
+
+// Generate neutral buildings across the map
+export function generateSettlements(world: WorldGrid, playerPositions: Position[], targetCount: number = 45, neutralFaction: Faction): void {
   const height = world.length;
   const width = world[0].length;
-  const settlements: Position[] = [];
+  const buildings: Position[] = [];
   const minDistance = 3;
-  const settlementsPerPlayer = 6; // Guaranteed settlements near each player
-  const playerSettlementMinRadius = 8;
-  const playerSettlementMaxRadius = 15;
+  const buildingsPerPlayer = 6; // Guaranteed buildings near each player
+  const playerBuildingMinRadius = 8;
+  const playerBuildingMaxRadius = 15;
 
-  // Create neutral faction for settlements
-  const neutralFaction = new Faction(-1, 0x808080, { x: 0, y: 0 });
-
-  // Helper to check distance from all existing settlements and player positions
+  // Helper to check distance from all existing buildings and player positions
   const isTooClose = (row: number, col: number): boolean => {
-    // Check against settlements
-    for (const settlement of settlements) {
-      const distance = Math.sqrt((row - settlement.y) ** 2 + (col - settlement.x) ** 2);
+    // Check against buildings
+    for (const building of buildings) {
+      const distance = Math.sqrt((row - building.y) ** 2 + (col - building.x) ** 2);
       if (distance < minDistance) return true;
     }
 
@@ -275,18 +304,19 @@ export function generateSettlements(world: WorldGrid, playerPositions: Position[
     return false;
   };
 
-  // First, place guaranteed settlements near each player capital (no distance check, create islands if needed)
+  // First, place guaranteed buildings near each player capital (no distance check, create islands if needed)
   for (const playerPos of playerPositions) {
     let placedForPlayer = 0;
     let attempts = 0;
-    const maxAttemptsPerPlayer = settlementsPerPlayer * 20;
+    const maxAttemptsPerPlayer = buildingsPerPlayer * 20;
+    let farmPlaced = false;
 
-    while (placedForPlayer < settlementsPerPlayer && attempts < maxAttemptsPerPlayer) {
+    while (placedForPlayer < buildingsPerPlayer && attempts < maxAttemptsPerPlayer) {
       attempts++;
 
       // Generate random position in ring around player capital
       const angle = Math.random() * Math.PI * 2;
-      const distance = playerSettlementMinRadius + Math.random() * (playerSettlementMaxRadius - playerSettlementMinRadius);
+      const distance = playerBuildingMinRadius + Math.random() * (playerBuildingMaxRadius - playerBuildingMinRadius);
 
       const row = Math.round(playerPos.y + distance * Math.sin(angle));
       const col = Math.round(playerPos.x + distance * Math.cos(angle));
@@ -308,22 +338,39 @@ export function generateSettlements(world: WorldGrid, playerPositions: Position[
         createIsland(world, row, col, 3);
       }
 
-      // Place settlement
       const pos = { x: col, y: row };
-      const settlement = new Settlement(neutralFaction, pos);
-      world[row][col].building = settlement;
-      neutralFaction.addBuilding(settlement);
 
-      settlements.push(pos);
+      // First building for this player is always a farm
+      if (!farmPlaced) {
+        const farm = new Farm(neutralFaction, pos);
+        world[row][col].building = farm;
+        neutralFaction.addBuilding(farm);
+        farmPlaced = true;
+      } else {
+        // Other buildings based on terrain
+        const buildingType = selectBuildingType(world[row][col].terrainType);
+        let building;
+        if (buildingType === 'barracks') {
+          building = new Barracks(neutralFaction, pos);
+        } else if (buildingType === 'archery_range') {
+          building = new ArcheryRange(neutralFaction, pos);
+        } else {
+          building = new Monastery(neutralFaction, pos);
+        }
+        world[row][col].building = building;
+        neutralFaction.addBuilding(building);
+      }
+
+      buildings.push(pos);
       placedForPlayer++;
     }
   }
 
-  // Second, place remaining settlements randomly (must respect distance checks)
+  // Second, place remaining buildings randomly (must respect distance checks)
   let attempts = 0;
   const maxAttempts = targetCount * 10;
 
-  while (settlements.length < targetCount && attempts < maxAttempts) {
+  while (buildings.length < targetCount && attempts < maxAttempts) {
     attempts++;
 
     const row = Math.floor(Math.random() * height);
@@ -335,17 +382,27 @@ export function generateSettlements(world: WorldGrid, playerPositions: Position[
       continue;
     }
 
-    // Check if too close to other settlements or players
+    // Check if too close to other buildings or players
     if (isTooClose(row, col)) {
       continue;
     }
 
-    // Place settlement
     const pos = { x: col, y: row };
-    const settlement = new Settlement(neutralFaction, pos);
-    tile.building = settlement;
-    neutralFaction.addBuilding(settlement);
 
-    settlements.push(pos);
+    // Select building type based on terrain
+    const buildingType = selectBuildingType(tile.terrainType);
+    let building;
+    if (buildingType === 'barracks') {
+      building = new Barracks(neutralFaction, pos);
+    } else if (buildingType === 'archery_range') {
+      building = new ArcheryRange(neutralFaction, pos);
+    } else {
+      building = new Monastery(neutralFaction, pos);
+    }
+
+    world[row][col].building = building;
+    neutralFaction.addBuilding(building);
+
+    buildings.push(pos);
   }
 }

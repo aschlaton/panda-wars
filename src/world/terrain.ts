@@ -6,10 +6,10 @@ export enum TerrainType {
 }
 
 export const TERRAIN_INFO = {
-  [TerrainType.Water]: { color: 0x3498db, name: 'Water' },
-  [TerrainType.Grass]: { color: 0x2ecc71, name: 'Grass' },
-  [TerrainType.Forest]: { color: 0x27ae60, name: 'Forest' },
-  [TerrainType.Mountain]: { color: 0x95a5a6, name: 'Mountain' },
+  [TerrainType.Water]: { color: 0x3498db, name: 'Water', movementCost: 2 },
+  [TerrainType.Grass]: { color: 0x2ecc71, name: 'Grass', movementCost: 1 },
+  [TerrainType.Forest]: { color: 0x27ae60, name: 'Forest', movementCost: 1 },
+  [TerrainType.Mountain]: { color: 0x95a5a6, name: 'Mountain', movementCost: 2 },
 } as const;
 
 import type { Unit } from '../units/Unit';

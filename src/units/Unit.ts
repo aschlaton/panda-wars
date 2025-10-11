@@ -23,6 +23,8 @@ export abstract class Unit {
   public foodScore: number;
   public canMove: boolean;
   public canAttack: boolean;
+  public maxMovementPoints: number;
+  public movementPoints: number;
 
   constructor(
     faction: Faction,
@@ -35,7 +37,8 @@ export abstract class Unit {
     favoredTerrain: TerrainType | null = null,
     foodScore: number = 1.0,
     canMove: boolean = true,
-    canAttack: boolean = true
+    canAttack: boolean = true,
+    maxMovementPoints: number = 5
   ) {
     this.faction = faction;
     this.position = position;
@@ -49,6 +52,12 @@ export abstract class Unit {
     this.foodScore = foodScore;
     this.canMove = canMove;
     this.canAttack = canAttack;
+    this.maxMovementPoints = maxMovementPoints;
+    this.movementPoints = maxMovementPoints;
+  }
+
+  public resetMovement(): void {
+    this.movementPoints = this.maxMovementPoints;
   }
 
   // Check if this unit has advantage over target

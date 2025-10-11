@@ -42,3 +42,6 @@ export const TRANSITION_THRESHOLD = 0.5;
 export const COMBAT_TYPE_ADVANTAGE_MULTIPLIER = 1.25;
 export const FAVORED_TERRAIN_MULTIPLIER = 1.15;
 export const DEFENDER_DAMAGE_MULTIPLIER = 0.85;
+
+// Food score settings
+export const NEUTRAL_FOOD_SCORE = 0.5;

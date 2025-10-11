@@ -88,6 +88,9 @@ export abstract class Building {
   protected placeTroop(troop: Unit, world: WorldGrid, position: Position): void {
     world[position.y][position.x].unit = troop;
 
+    // Units spawn with 0 movement points (can't move on spawn turn)
+    troop.movementPoints = 0;
+
     // Randomly set next production interval to 3, 4, or 5
     this.productionInterval = Math.floor(Math.random() * 3) + 3;
   }

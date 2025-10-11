@@ -53,7 +53,7 @@ export class Capital extends Building {
     if (!spawnPosition) return null;
 
     // Create and place troop with faction's food score
-    const foodScore = faction.getFoodScore();
+    const foodScore = this.faction.getFoodScore();
     let troop: Unit;
     if (troopType === 'warrior') troop = new Warrior(this.faction, spawnPosition, foodScore);
     else if (troopType === 'archer') troop = new Archer(this.faction, spawnPosition, foodScore);
@@ -88,7 +88,7 @@ export class ArcheryRange extends Building {
     const spawnPosition = this.findSpawnPosition(world, position, mapWidth, mapHeight);
     if (!spawnPosition) return null;
 
-    const foodScore = faction.getFoodScore();
+    const foodScore = this.faction.getFoodScore();
     const troop = new Archer(this.faction, spawnPosition, foodScore);
     this.placeTroop(troop, world, spawnPosition);
     return { troop, spawnPos: spawnPosition };
@@ -108,7 +108,7 @@ export class Monastery extends Building {
     const spawnPosition = this.findSpawnPosition(world, position, mapWidth, mapHeight);
     if (!spawnPosition) return null;
 
-    const foodScore = faction.getFoodScore();
+    const foodScore = this.faction.getFoodScore();
     const troop = new Monk(this.faction, spawnPosition, foodScore);
     this.placeTroop(troop, world, spawnPosition);
     return { troop, spawnPos: spawnPosition };
@@ -128,7 +128,7 @@ export class Barracks extends Building {
     const spawnPosition = this.findSpawnPosition(world, position, mapWidth, mapHeight);
     if (!spawnPosition) return null;
 
-    const foodScore = faction.getFoodScore();
+    const foodScore = this.faction.getFoodScore();
     const troop = new Warrior(this.faction, spawnPosition, foodScore);
     this.placeTroop(troop, world, spawnPosition);
 
@@ -150,7 +150,7 @@ export class Farm extends Building {
       return null;
     }
 
-    const foodScore = faction.getFoodScore();
+    const foodScore = this.faction.getFoodScore();
     const troop = new Farmer(this.faction, position, foodScore);
     this.placeTroop(troop, world, position);
     return { troop, spawnPos: position };

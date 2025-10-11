@@ -1,12 +1,12 @@
 import type { Unit } from './Unit';
 import type { WorldGrid } from '../world/terrain';
 import type { Position } from '../types';
-import { TerrainType } from '../world/terrain';
+import { TERRAIN_INFO } from '../world/terrain';
 import { executeAttack } from '../combat/combatManager';
 import { getHexNeighbors } from '../utils/hexUtils';
 
 /**
- * Check if a unit can move to a target position (must be adjacent).
+ * Check if a unit can move to a target position (must be adjacent and have enough movement points).
  */
 export function canMoveTo(unit: Unit, fromPos: Position, targetPos: Position, world: WorldGrid): boolean {
   const mapWidth = world[0].length;
@@ -26,13 +26,14 @@ export function canMoveTo(unit: Unit, fromPos: Position, targetPos: Position, wo
 
   const targetTile = world[targetPos.y][targetPos.x];
 
-  // Can't move to water
-  if (targetTile.terrainType === TerrainType.Water) {
+  // Can't move if unit can't move (e.g., Farmer)
+  if (!unit.canMove) {
     return false;
   }
 
-  // Can't move if unit can't move (e.g., Farmer)
-  if (!unit.canMove) {
+  // Check if enough movement points for terrain cost
+  const movementCost = TERRAIN_INFO[targetTile.terrainType].movementCost;
+  if (unit.movementPoints < movementCost) {
     return false;
   }
 
@@ -82,8 +83,10 @@ export function moveUnit(
   fromTile.unit = undefined;
   targetTile.unit = unit;
 
-  // Update unit position
+  // Update unit position and deduct movement cost
   unit.position = toPos;
+  const movementCost = TERRAIN_INFO[targetTile.terrainType].movementCost;
+  unit.movementPoints -= movementCost;
 
   // Capture building if present
   if (targetTile.building && targetTile.building.faction !== unit.faction) {
