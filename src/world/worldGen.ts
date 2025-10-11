@@ -1,6 +1,7 @@
 import { TerrainType, type WorldGrid } from './terrain';
 import { ELEVATION_THRESHOLDS } from '../constants';
 import type { Position } from '../types';
+import { Faction } from '../faction/Faction';
 import { Settlement } from '../buildings/buildingTypes';
 
 // Generate random 2D gradient vector
@@ -215,16 +216,23 @@ export function generateStartingPositions(world: WorldGrid, numPlayers: number =
   const width = world[0].length;
   const positions: Position[] = [];
 
-  // Define corner offsets (not exactly at corners, but near them)
-  const cornerOffsets = [
-    { row: Math.floor(height * 0.15), col: Math.floor(width * 0.15) }, // Top-left
-    { row: Math.floor(height * 0.15), col: Math.floor(width * 0.85) }, // Top-right
-    { row: Math.floor(height * 0.85), col: Math.floor(width * 0.15) }, // Bottom-left
-    { row: Math.floor(height * 0.85), col: Math.floor(width * 0.85) }, // Bottom-right
+  // Define corner base positions with randomization
+  const cornerBases = [
+    { rowBase: 0.15, colBase: 0.15 }, // Top-left
+    { rowBase: 0.15, colBase: 0.85 }, // Top-right
+    { rowBase: 0.85, colBase: 0.15 }, // Bottom-left
+    { rowBase: 0.85, colBase: 0.85 }, // Bottom-right
   ];
 
   for (let i = 0; i < Math.min(numPlayers, 4); i++) {
-    const { row, col } = cornerOffsets[i];
+    const { rowBase, colBase } = cornerBases[i];
+
+    // Add random offset within ±5% of map size
+    const rowOffset = (Math.random() - 0.5) * 0.1 * height;
+    const colOffset = (Math.random() - 0.5) * 0.1 * width;
+
+    const row = Math.floor(height * rowBase + rowOffset);
+    const col = Math.floor(width * colBase + colOffset);
 
     // Check if position is on water and create island if needed
     if (world[row][col].terrainType === TerrainType.Water) {
@@ -246,6 +254,9 @@ export function generateSettlements(world: WorldGrid, playerPositions: Position[
   const settlementsPerPlayer = 6; // Guaranteed settlements near each player
   const playerSettlementMinRadius = 8;
   const playerSettlementMaxRadius = 15;
+
+  // Create neutral faction for settlements
+  const neutralFaction = new Faction(-1, 0x808080, { x: 0, y: 0 });
 
   // Helper to check distance from all existing settlements and player positions
   const isTooClose = (row: number, col: number): boolean => {
@@ -298,7 +309,7 @@ export function generateSettlements(world: WorldGrid, playerPositions: Position[
       }
 
       // Place settlement
-      world[row][col].building = new Settlement(-1);
+      world[row][col].building = new Settlement(neutralFaction);
 
       settlements.push({ x: col, y: row });
       placedForPlayer++;
@@ -327,7 +338,7 @@ export function generateSettlements(world: WorldGrid, playerPositions: Position[
     }
 
     // Place settlement
-    tile.building = new Settlement(-1);
+    tile.building = new Settlement(neutralFaction);
 
     settlements.push({ x: col, y: row });
   }

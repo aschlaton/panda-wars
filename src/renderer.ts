@@ -198,7 +198,7 @@ export class Renderer {
     this.mapHeight = rows * hexRadius * 1.5 + hexRadius * 0.5;
 
     this.minimap.resize(this.mapWidth, this.mapHeight);
-    this.minimap.render(state.world, hexRadius, hexWidth, cols, rows, state.players);
+    this.minimap.render(state.world, hexRadius, hexWidth, cols, rows);
 
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
@@ -230,8 +230,7 @@ export class Renderer {
 
         if (tile.building.type === 'capital') {
           // Capital: large star
-          const player = state.players.find(p => p.id === tile.building!.ownerId);
-          const color = player ? player.color : 0xffffff;
+          const color = tile.building.faction.color;
 
           // Draw star
           const points = 5;

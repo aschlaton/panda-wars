@@ -1,6 +1,7 @@
 import { COMBAT_TYPE_ADVANTAGE_MULTIPLIER, FAVORED_TERRAIN_MULTIPLIER } from '../constants';
 import { TerrainType } from '../world/terrain';
 import type { Building } from '../buildings/Building';
+import type { Faction } from '../faction/Faction';
 
 export enum CombatType {
   Melee = 'melee',
@@ -11,24 +12,30 @@ export enum CombatType {
 
 export abstract class Unit {
   public type: string;
-  public ownerId: number;
+  public faction: Faction;
   public health: number;
   public maxHealth: number;
   public attack: number;
   public defense: number;
   public combatType: CombatType;
   public favoredTerrain: TerrainType | null;
+  public foodScore: number;
+  public canMove: boolean;
+  public canAttack: boolean;
 
   constructor(
-    ownerId: number,
+    faction: Faction,
     type: string,
     health: number,
     attack: number,
     defense: number,
     combatType: CombatType,
-    favoredTerrain: TerrainType | null = null
+    favoredTerrain: TerrainType | null = null,
+    foodScore: number = 1.0,
+    canMove: boolean = true,
+    canAttack: boolean = true
   ) {
-    this.ownerId = ownerId;
+    this.faction = faction;
     this.type = type;
     this.health = health;
     this.maxHealth = health;
@@ -36,6 +43,9 @@ export abstract class Unit {
     this.defense = defense;
     this.combatType = combatType;
     this.favoredTerrain = favoredTerrain;
+    this.foodScore = foodScore;
+    this.canMove = canMove;
+    this.canAttack = canAttack;
   }
 
   // Check if this unit has advantage over target
@@ -60,14 +70,34 @@ export abstract class Unit {
       multiplier *= FAVORED_TERRAIN_MULTIPLIER;
     }
 
+    // Food score multiplier
+    multiplier *= this.foodScore;
+
     return this.attack * multiplier;
+  }
+
+  // Calculate effective defense damage when defending
+  getEffectiveDefense(target: Unit, terrain?: TerrainType): number {
+    let multiplier = 1;
+
+    // Combat type advantage
+    if (this.hasAdvantage(target)) {
+      multiplier *= COMBAT_TYPE_ADVANTAGE_MULTIPLIER;
+    }
+
+    // Favored terrain bonus
+    if (terrain && this.favoredTerrain && terrain === this.favoredTerrain) {
+      multiplier *= FAVORED_TERRAIN_MULTIPLIER;
+    }
+
+    return this.defense * multiplier;
   }
 
   takeDamage(damage: number, building?: Building): void {
     let finalDamage = damage;
 
     // Apply building defense bonus if on owned building
-    if (building && building.ownerId === this.ownerId) {
+    if (building && building.faction === this.faction) {
       finalDamage *= building.defenseMultiplier;
     }
 

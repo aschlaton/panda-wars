@@ -1,8 +1,9 @@
 import { Renderer } from './renderer';
 import type { GameState } from './types';
 import { generateWorld, generateStartingPositions, generateSettlements } from './world/worldGen';
-import { MAP_WIDTH, MAP_HEIGHT, PLAYER_COLORS, WORLD_OCTAVES } from './constants';
+import { MAP_WIDTH, MAP_HEIGHT, FACTION_COLORS, WORLD_OCTAVES } from './constants';
 import { Capital } from './buildings/buildingTypes';
+import { Faction } from './faction/Faction';
 
 export class Game {
   private renderer: Renderer;
@@ -13,9 +14,9 @@ export class Game {
     this.renderer = renderer;
     this.state = {
       worldGenerated: false,
-      mapWidth: MAP_WIDTH, 
+      mapWidth: MAP_WIDTH,
       mapHeight: MAP_HEIGHT,
-      players: [],
+      factions: [],
       world: null,
     };
   }
@@ -44,23 +45,19 @@ export class Game {
     // Generate world using Perlin noise
     this.state.world = generateWorld(this.state.mapWidth, this.state.mapHeight, WORLD_OCTAVES);
 
-    // Generate starting positions for players
-    const startingPositions = generateStartingPositions(this.state.world, PLAYER_COLORS.length);
+    // Generate starting positions for factions
+    const startingPositions = generateStartingPositions(this.state.world, FACTION_COLORS.length);
 
-    // Initialize players with starting positions
-    this.state.players = PLAYER_COLORS.map((color, id) => ({
-      id,
-      color,
-      startPosition: startingPositions[id],
-    }));
+    // Initialize player factions with starting positions
+    this.state.factions = FACTION_COLORS.map((color, id) => new Faction(id, color, startingPositions[id]));
 
-    // Place capitals at player starting positions
-    for (const player of this.state.players) {
-      const { x, y } = player.startPosition;
-      this.state.world[y][x].building = new Capital(player.id);
+    // Place capitals at faction starting positions
+    for (const faction of this.state.factions) {
+      const { x, y } = faction.startPosition;
+      this.state.world[y][x].building = new Capital(faction);
     }
 
-    // Generate neutral settlements (6 guaranteed per player + ~21 random)
+    // Generate neutral settlements (6 guaranteed per player faction + ~21 random)
     generateSettlements(this.state.world, startingPositions, 45);
 
     this.state.worldGenerated = true;

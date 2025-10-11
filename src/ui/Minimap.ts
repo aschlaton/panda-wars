@@ -168,7 +168,7 @@ export class Minimap {
     this.app.renderer.resize(minimapWidth, minimapHeight);
   }
 
-  render(world: WorldGrid, hexRadius: number, hexWidth: number, cols: number, rows: number, players?: Array<{ id: number; color: number; startPosition: { x: number; y: number } }>): void {
+  render(world: WorldGrid, hexRadius: number, hexWidth: number, cols: number, rows: number): void {
     this.container.removeChildren();
 
     if (!this.app) return;
@@ -212,8 +212,7 @@ export class Minimap {
 
         if (tile.building.type === 'capital') {
           // Capital: larger colored circle
-          const player = players?.find(p => p.id === tile.building!.ownerId);
-          const color = player ? player.color : 0xffffff;
+          const color = tile.building.faction.color;
 
           marker.circle(minimapX, minimapY, hexRadius * minimapScale * 2.5);
           marker.fill(color);

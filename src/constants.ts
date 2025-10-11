@@ -1,4 +1,4 @@
-export const PLAYER_COLORS = [
+export const FACTION_COLORS = [
   0xff0000, // Red
   0x00ff00, // Green
   0x0000ff, // Blue
