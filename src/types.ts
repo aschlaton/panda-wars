@@ -8,6 +8,7 @@ export type Position = { x: number; y: number };
 export type Player = {
   id: number;
   color: number;
+  startPosition: Position;
 };
 
 export type GameState = {

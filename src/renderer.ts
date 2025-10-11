@@ -198,7 +198,7 @@ export class Renderer {
     this.mapHeight = rows * hexRadius * 1.5 + hexRadius * 0.5;
 
     this.minimap.resize(this.mapWidth, this.mapHeight);
-    this.minimap.render(state.world, hexRadius, hexWidth, cols, rows);
+    this.minimap.render(state.world, hexRadius, hexWidth, cols, rows, state.players);
 
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
@@ -214,6 +214,50 @@ export class Renderer {
         graphics.stroke({ width: HEX_BORDER_WIDTH, color: HEX_BORDER_COLOR });
 
         this.worldContainer.addChild(graphics);
+      }
+    }
+
+    // Render buildings
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const tile = state.world[row][col];
+        if (!tile.building) continue;
+
+        const x = col * hexWidth + (row % 2) * (hexWidth / 2) + hexWidth / 2;
+        const y = row * (hexRadius * 1.5) + hexRadius;
+
+        const building = new PIXI.Graphics();
+
+        if (tile.building.type === 'capital') {
+          // Capital: large star
+          const player = state.players.find(p => p.id === tile.building!.ownerId);
+          const color = player ? player.color : 0xffffff;
+
+          // Draw star
+          const points = 5;
+          const outerRadius = hexRadius * 0.7;
+          const innerRadius = hexRadius * 0.35;
+          const starPoints: number[] = [];
+
+          for (let i = 0; i < points * 2; i++) {
+            const radius = i % 2 === 0 ? outerRadius : innerRadius;
+            const angle = (Math.PI / points) * i - Math.PI / 2;
+            starPoints.push(x + radius * Math.cos(angle));
+            starPoints.push(y + radius * Math.sin(angle));
+          }
+
+          building.poly(starPoints);
+          building.fill(color);
+          building.stroke({ width: hexRadius * 0.1, color: 0xffffff });
+        } else if (tile.building.type === 'settlement') {
+          // Settlement: gray square
+          const size = hexRadius * 0.5;
+          building.rect(x - size / 2, y - size / 2, size, size);
+          building.fill(0xaaaaaa);
+          building.stroke({ width: hexRadius * 0.08, color: 0x666666 });
+        }
+
+        this.worldContainer.addChild(building);
       }
     }
 

@@ -12,9 +12,14 @@ export const TERRAIN_INFO = {
   [TerrainType.Mountain]: { color: 0x95a5a6, name: 'Mountain' },
 } as const;
 
+import type { Unit } from '../units/Unit';
+import type { Building } from '../buildings/Building';
+
 export type Tile = {
   terrainType: TerrainType;
   elevation: number;
+  building?: Building;
+  unit?: Unit;
 };
 
 export type WorldGrid = Tile[][];

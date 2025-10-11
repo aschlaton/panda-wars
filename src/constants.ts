@@ -37,3 +37,8 @@ export const MINIMAP_BORDER_COLOR = 0x666666;
 // Transition settings
 export const TRANSITION_SPEED = 0.15;
 export const TRANSITION_THRESHOLD = 0.5;
+
+// Combat settings
+export const COMBAT_TYPE_ADVANTAGE_MULTIPLIER = 1.25;
+export const FAVORED_TERRAIN_MULTIPLIER = 1.15;
+export const DEFENDER_DAMAGE_MULTIPLIER = 0.85;

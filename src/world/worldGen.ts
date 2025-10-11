@@ -1,5 +1,7 @@
 import { TerrainType, type WorldGrid } from './terrain';
 import { ELEVATION_THRESHOLDS } from '../constants';
+import type { Position } from '../types';
+import { Settlement } from '../buildings/buildingTypes';
 
 // Generate random 2D gradient vector
 function generateGradient(): [number, number] {
@@ -151,4 +153,182 @@ export function generateWorld(width: number = 150, height: number = 80, octaves:
   }
 
   return world;
+}
+
+// Create a small island at the given position
+function createIsland(world: WorldGrid, centerRow: number, centerCol: number, radius: number = 3): void {
+  const width = world[0].length;
+  const height = world.length;
+
+  // Randomize island characteristics
+  const baseElevation = ELEVATION_THRESHOLDS.GRASS + Math.random() * 0.2; // Wider range
+  const elevationVariation = Math.random() * 0.3 + 0.15; // More height variation
+
+  // Random shape distortion using multiple angles
+  const shapeAngles: number[] = [];
+  const shapeDistortions: number[] = [];
+  for (let i = 0; i < 8; i++) {
+    shapeAngles.push((Math.PI * 2 * i) / 8);
+    shapeDistortions.push(0.6 + Math.random() * 0.8); // Random radius multiplier per direction
+  }
+
+  for (let row = Math.max(0, centerRow - radius - 1); row <= Math.min(height - 1, centerRow + radius + 1); row++) {
+    for (let col = Math.max(0, centerCol - radius - 1); col <= Math.min(width - 1, centerCol + radius + 1); col++) {
+      const dx = col - centerCol;
+      const dy = row - centerRow;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const angle = Math.atan2(dy, dx);
+
+      // Find nearest angle index for shape distortion
+      const angleIndex = Math.floor(((angle + Math.PI) / (Math.PI * 2)) * 8) % 8;
+      const nextIndex = (angleIndex + 1) % 8;
+
+      // Interpolate between two nearest distortion values
+      const t = (((angle + Math.PI) / (Math.PI * 2)) * 8) % 1;
+      const distortionFactor = shapeDistortions[angleIndex] * (1 - t) + shapeDistortions[nextIndex] * t;
+
+      const effectiveRadius = radius * distortionFactor;
+
+      if (distance <= effectiveRadius) {
+        // Create island with varying elevation based on distance from center
+        const elevationFactor = 1 - (distance / effectiveRadius);
+
+        // Add Perlin-like noise for more natural variation
+        const noise1 = Math.sin(row * 0.5 + col * 0.3) * 0.1;
+        const noise2 = Math.cos(row * 0.3 - col * 0.5) * 0.08;
+        const randomNoise = (Math.random() - 0.5) * 0.12;
+
+        const elevation = baseElevation + elevationFactor * elevationVariation + noise1 + noise2 + randomNoise;
+
+        world[row][col] = {
+          elevation: Math.min(Math.max(elevation, ELEVATION_THRESHOLDS.GRASS), 0.95),
+          terrainType: elevationToTerrain(elevation),
+        };
+      }
+    }
+  }
+}
+
+// Generate starting positions for players near the 4 corners
+export function generateStartingPositions(world: WorldGrid, numPlayers: number = 4): Position[] {
+  const height = world.length;
+  const width = world[0].length;
+  const positions: Position[] = [];
+
+  // Define corner offsets (not exactly at corners, but near them)
+  const cornerOffsets = [
+    { row: Math.floor(height * 0.15), col: Math.floor(width * 0.15) }, // Top-left
+    { row: Math.floor(height * 0.15), col: Math.floor(width * 0.85) }, // Top-right
+    { row: Math.floor(height * 0.85), col: Math.floor(width * 0.15) }, // Bottom-left
+    { row: Math.floor(height * 0.85), col: Math.floor(width * 0.85) }, // Bottom-right
+  ];
+
+  for (let i = 0; i < Math.min(numPlayers, 4); i++) {
+    const { row, col } = cornerOffsets[i];
+
+    // Check if position is on water and create island if needed
+    if (world[row][col].terrainType === TerrainType.Water) {
+      createIsland(world, row, col, 4);
+    }
+
+    positions.push({ x: col, y: row });
+  }
+
+  return positions;
+}
+
+// Generate neutral settlements across the map
+export function generateSettlements(world: WorldGrid, playerPositions: Position[], targetCount: number = 45): void {
+  const height = world.length;
+  const width = world[0].length;
+  const settlements: Position[] = [];
+  const minDistance = 3;
+  const settlementsPerPlayer = 6; // Guaranteed settlements near each player
+  const playerSettlementMinRadius = 8;
+  const playerSettlementMaxRadius = 15;
+
+  // Helper to check distance from all existing settlements and player positions
+  const isTooClose = (row: number, col: number): boolean => {
+    // Check against settlements
+    for (const settlement of settlements) {
+      const distance = Math.sqrt((row - settlement.y) ** 2 + (col - settlement.x) ** 2);
+      if (distance < minDistance) return true;
+    }
+
+    // Check against player starting positions
+    for (const pos of playerPositions) {
+      const distance = Math.sqrt((row - pos.y) ** 2 + (col - pos.x) ** 2);
+      if (distance < minDistance) return true;
+    }
+
+    return false;
+  };
+
+  // First, place guaranteed settlements near each player capital (no distance check, create islands if needed)
+  for (const playerPos of playerPositions) {
+    let placedForPlayer = 0;
+    let attempts = 0;
+    const maxAttemptsPerPlayer = settlementsPerPlayer * 20;
+
+    while (placedForPlayer < settlementsPerPlayer && attempts < maxAttemptsPerPlayer) {
+      attempts++;
+
+      // Generate random position in ring around player capital
+      const angle = Math.random() * Math.PI * 2;
+      const distance = playerSettlementMinRadius + Math.random() * (playerSettlementMaxRadius - playerSettlementMinRadius);
+
+      const row = Math.round(playerPos.y + distance * Math.sin(angle));
+      const col = Math.round(playerPos.x + distance * Math.cos(angle));
+
+      // Check bounds
+      if (row < 0 || row >= height || col < 0 || col >= width) {
+        continue;
+      }
+
+      const tile = world[row][col];
+
+      // Check if already has a building
+      if (tile.building) {
+        continue;
+      }
+
+      // If water, create an island
+      if (tile.terrainType === TerrainType.Water) {
+        createIsland(world, row, col, 3);
+      }
+
+      // Place settlement
+      world[row][col].building = new Settlement(-1);
+
+      settlements.push({ x: col, y: row });
+      placedForPlayer++;
+    }
+  }
+
+  // Second, place remaining settlements randomly (must respect distance checks)
+  let attempts = 0;
+  const maxAttempts = targetCount * 10;
+
+  while (settlements.length < targetCount && attempts < maxAttempts) {
+    attempts++;
+
+    const row = Math.floor(Math.random() * height);
+    const col = Math.floor(Math.random() * width);
+    const tile = world[row][col];
+
+    // Check if tile is land (not water) and doesn't already have a building
+    if (tile.terrainType === TerrainType.Water || tile.building) {
+      continue;
+    }
+
+    // Check if too close to other settlements or players
+    if (isTooClose(row, col)) {
+      continue;
+    }
+
+    // Place settlement
+    tile.building = new Settlement(-1);
+
+    settlements.push({ x: col, y: row });
+  }
 }
