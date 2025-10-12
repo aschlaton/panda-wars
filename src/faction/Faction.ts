@@ -11,6 +11,7 @@ export class Faction {
   public buildings: Set<Building> = new Set();
   public strategy: Strategy | null = null;
   public isNeutral: boolean = false;
+  public defeated: boolean = false;
   private rawFoodScore: number = 1.0; // Uncapped food score
 
   constructor(id: number, color: number, startPosition: { x: number; y: number }, strategy: Strategy | null = null, isNeutral: boolean = false) {
@@ -27,7 +28,8 @@ export class Faction {
    */
   public getFoodScore(): number {
     if (this.isNeutral) return NEUTRAL_FOOD_SCORE;
-    return Math.max(0, Math.min(1, this.rawFoodScore));
+    // Clamp to [NEUTRAL_FOOD_SCORE, 1]
+    return Math.max(NEUTRAL_FOOD_SCORE, Math.min(1, this.rawFoodScore));
   }
 
   /**
@@ -74,5 +76,38 @@ export class Faction {
 
   public removeBuilding(building: Building): void {
     this.buildings.delete(building);
+  }
+
+  /**
+   * Transfer all units and buildings from this faction to the target faction.
+   * Also updates farm occupancy effects appropriately.
+   */
+  public transferAllAssetsTo(target: Faction): void {
+    if (this === target) return;
+
+    // Transfer units
+    const unitsToTransfer = [...this.units];
+    for (const unit of unitsToTransfer) {
+      this.removeUnit(unit);
+      unit.faction = target;
+      target.addUnit(unit);
+    }
+
+    // Transfer buildings
+    const buildingsToTransfer = [...this.buildings];
+    for (const building of buildingsToTransfer) {
+      this.removeBuilding(building);
+
+      // Adjust food score for farms
+      if (building.type === 'farm') {
+        this.onFarmUnoccupied();
+        target.onFarmOccupied();
+      }
+
+      building.faction = target;
+      target.addBuilding(building);
+    }
+
+    this.defeated = true;
   }
 }

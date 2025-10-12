@@ -27,6 +27,7 @@ export class Renderer {
   private hexRadius: number = 0;
   private hexWidth: number = 0;
   private terrainRendered: boolean = false;
+  private currentState: GameState | null = null;
 
   constructor() {
     this.app = new PIXI.Application();
@@ -47,11 +48,23 @@ export class Renderer {
       antialias: true,
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,
+      preference: 'webgl',
+      premultipliedAlpha: true,
     });
 
     this.app.canvas.id = 'game-container';
     container.appendChild(this.app.canvas);
     this.app.stage.addChild(this.worldContainer);
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      this.onResize();
+    });
+
+    // Handle clicks on the canvas to show tile info
+    this.app.canvas.addEventListener('click', (e) => {
+      this.onCanvasClick(e);
+    });
 
     // Prevent browser zoom
     document.addEventListener('keydown', (e) => {
@@ -199,24 +212,21 @@ export class Renderer {
   }
 
   private renderDynamic(state: GameState): void {
-    // Clear dynamic layer
+    // Clear dynamic layer (clears everything - tiles will be redrawn below)
     this.dynamicContainer.removeChildren();
 
-    const cols = state.mapWidth;
-    const rows = state.mapHeight;
-
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const tile = state.world![row][col];
+    // Render all buildings from faction sets (optimized - no map scan)
+    for (const faction of state.factions) {
+      for (const buildingData of faction.buildings) {
+        const col = buildingData.position.x;
+        const row = buildingData.position.y;
         const x = col * this.hexWidth + (row % 2) * (this.hexWidth / 2) + this.hexWidth / 2;
         const y = row * (this.hexRadius * 1.5) + this.hexRadius;
 
-        // Render building
-        if (tile.building) {
-          const building = new PIXI.Graphics();
-          const buildingColor = tile.building.faction.color;
+        const building = new PIXI.Graphics();
+        const buildingColor = buildingData.faction.color;
 
-          if (tile.building.type === 'capital') {
+        if (buildingData.type === 'capital') {
             // Capital: large star
             const points = 5;
             const outerRadius = this.hexRadius * 0.7;
@@ -233,13 +243,13 @@ export class Renderer {
             building.poly(starPoints);
             building.fill(buildingColor);
             building.stroke({ width: this.hexRadius * 0.1, color: 0xffffff });
-          } else if (tile.building.type === 'barracks') {
+          } else if (buildingData.type === 'barracks') {
             // Barracks: square
             const size = this.hexRadius * 0.5;
             building.rect(x - size / 2, y - size / 2, size, size);
             building.fill(buildingColor);
             building.stroke({ width: this.hexRadius * 0.08, color: 0xffffff });
-          } else if (tile.building.type === 'archery_range') {
+          } else if (buildingData.type === 'archery_range') {
             // Archery Range: triangle
             const size = this.hexRadius * 0.6;
             building.poly([
@@ -249,7 +259,7 @@ export class Renderer {
             ]);
             building.fill(buildingColor);
             building.stroke({ width: this.hexRadius * 0.08, color: 0xffffff });
-          } else if (tile.building.type === 'monastery') {
+          } else if (buildingData.type === 'monastery') {
             // Monastery: diamond
             const size = this.hexRadius * 0.5;
             building.poly([
@@ -260,7 +270,7 @@ export class Renderer {
             ]);
             building.fill(buildingColor);
             building.stroke({ width: this.hexRadius * 0.08, color: 0xffffff });
-          } else if (tile.building.type === 'farm') {
+          } else if (buildingData.type === 'farm') {
             // Farm: small square
             const size = this.hexRadius * 0.4;
             building.rect(x - size / 2, y - size / 2, size, size);
@@ -269,26 +279,35 @@ export class Renderer {
           }
 
           this.dynamicContainer.addChild(building);
-        }
+      }
+    }
 
-        // Render unit
-        if (tile.unit) {
-          const unit = new PIXI.Graphics();
-          const unitColor = tile.unit.faction.color;
+    // Render all units from faction sets (optimized - no map scan)
+    for (const faction of state.factions) {
+      for (const unitData of faction.units) {
+        const col = unitData.position.x;
+        const row = unitData.position.y;
+        const x = col * this.hexWidth + (row % 2) * (this.hexWidth / 2) + this.hexWidth / 2;
+        const y = row * (this.hexRadius * 1.5) + this.hexRadius;
 
-          const unitRadius = this.hexRadius * 0.4;
-          unit.circle(x, y, unitRadius);
-          unit.fill(unitColor);
-          unit.stroke({ width: this.hexRadius * 0.06, color: 0xffffff });
+        const unit = new PIXI.Graphics();
+        const unitColor = unitData.faction.color;
 
-          this.dynamicContainer.addChild(unit);
-        }
+        const unitRadius = this.hexRadius * 0.4;
+        unit.circle(x, y, unitRadius);
+        unit.fill(unitColor);
+        unit.stroke({ width: this.hexRadius * 0.06, color: 0xffffff });
+
+        this.dynamicContainer.addChild(unit);
       }
     }
   }
 
   render(state: GameState): void {
     if (!state.world) return;
+
+    // Store current state for click handling
+    this.currentState = state;
 
     // Calculate hex dimensions if not done yet
     if (!this.terrainRendered) {
@@ -320,5 +339,85 @@ export class Renderer {
 
     // Render dynamic content every frame
     this.renderDynamic(state);
+  }
+
+  public refreshMinimap(state: GameState): void {
+    if (!state.world) return;
+    if (this.hexRadius <= 0 || this.hexWidth <= 0) return;
+    this.minimap.render(state.world, this.hexRadius, this.hexWidth, state.mapWidth, state.mapHeight);
+    this.minimap.updateViewport(this.worldContainer.x, this.worldContainer.y, this.zoomLevel, this.mapWidth, this.mapHeight);
+  }
+
+  private onResize(): void {
+    // Update minimap viewport when window resizes
+    this.minimap.updateViewport(this.worldContainer.x, this.worldContainer.y, this.zoomLevel, this.mapWidth, this.mapHeight);
+  }
+
+  private onCanvasClick(e: MouseEvent): void {
+    if (!this.currentState || !this.currentState.world) return;
+
+    // Convert screen coordinates to world coordinates
+    const worldX = (e.clientX - this.worldContainer.x) / this.zoomLevel;
+    const worldY = (e.clientY - this.worldContainer.y) / this.zoomLevel;
+
+    // Convert world coordinates to hex grid coordinates
+    const col = Math.floor((worldX - this.hexWidth / 2) / this.hexWidth);
+    const row = Math.floor((worldY - this.hexRadius) / (this.hexRadius * 1.5));
+
+    // Check bounds
+    if (col < 0 || col >= this.currentState.mapWidth || row < 0 || row >= this.currentState.mapHeight) {
+      return;
+    }
+
+    const tile = this.currentState.world[row][col];
+
+    // Build popup content
+    let content = `<div style="font-family: monospace; padding: 10px; background: rgba(0,0,0,0.9); color: white; border: 2px solid #fff; border-radius: 5px; max-width: 300px;">`;
+    content += `<div style="font-weight: bold; margin-bottom: 8px;">Tile (${col}, ${row})</div>`;
+    content += `<div style="margin-bottom: 8px;">Terrain: ${tile.terrainType}</div>`;
+
+    if (tile.building) {
+      content += `<div style="margin-bottom: 8px; padding-top: 8px; border-top: 1px solid #666;">`;
+      content += `<div style="font-weight: bold;">Building: ${tile.building.type}</div>`;
+      content += `<div>Faction: ${tile.building.faction.id}</div>`;
+      content += `<div>Defense: ${tile.building.defenseMultiplier}x</div>`;
+      content += `</div>`;
+    }
+
+    if (tile.unit) {
+      content += `<div style="padding-top: 8px; border-top: 1px solid #666;">`;
+      content += `<div style="font-weight: bold;">Unit: ${tile.unit.type}</div>`;
+      content += `<div>Faction: ${tile.unit.faction.id}</div>`;
+      content += `<div>HP: ${tile.unit.health}/${tile.unit.maxHealth}</div>`;
+      content += `<div>Attack: ${tile.unit.attack} | Defense: ${tile.unit.defense}</div>`;
+      content += `<div>Combat Type: ${tile.unit.combatType}</div>`;
+      content += `<div>Movement: ${tile.unit.movementPoints}/${tile.unit.maxMovementPoints}</div>`;
+      content += `</div>`;
+    }
+
+    content += `</div>`;
+
+    // Remove any existing popup
+    const existingPopup = document.getElementById('tile-info-popup');
+    if (existingPopup) {
+      existingPopup.remove();
+    }
+
+    // Create and show popup
+    const popup = document.createElement('div');
+    popup.id = 'tile-info-popup';
+    popup.innerHTML = content;
+    popup.style.position = 'absolute';
+    popup.style.left = `${e.clientX + 10}px`;
+    popup.style.top = `${e.clientY + 10}px`;
+    popup.style.zIndex = '1000';
+    popup.style.pointerEvents = 'none';
+
+    document.body.appendChild(popup);
+
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+      popup.remove();
+    }, 3000);
   }
 }

@@ -62,14 +62,27 @@ export function moveUnit(
 
   const targetTile = world[toPos.y][toPos.x];
 
-  // If there's an enemy unit, attack it
-  if (targetTile.unit && targetTile.unit.faction !== unit.faction) {
+  // If there's an enemy unit OR enemy building, attack it
+  const hasEnemyUnit = targetTile.unit && targetTile.unit.faction !== unit.faction;
+  const hasEnemyBuilding = targetTile.building && targetTile.building.faction !== unit.faction;
+
+  if (hasEnemyUnit || hasEnemyBuilding) {
     // Check if unit can attack
     if (!unit.canAttack) {
       return false;
     }
 
-    return executeAttack(unit, fromPos, toPos, world);
+    // Can't attack if already moved this turn
+    if (unit.movementPoints < unit.maxMovementPoints) {
+      return false;
+    }
+
+    // Consume all movement points when attacking
+    const attackResult = executeAttack(unit, fromPos, toPos, world);
+    if (attackResult) {
+      unit.movementPoints = 0;
+    }
+    return attackResult;
   }
 
   // Move to empty tile
@@ -96,6 +109,11 @@ export function moveUnit(
     building.faction = unit.faction;
     building.position = toPos;
     unit.faction.addBuilding(building);
+
+    // If captured a capital, defeat old faction and transfer assets
+    if (building.type === 'capital') {
+      oldFaction.transferAllAssetsTo(unit.faction);
+    }
   }
 
   // Check if occupying a farm

@@ -2,70 +2,100 @@ import { BaseStrategy } from './Strategy';
 import type { Unit } from '../units/Unit';
 import type { WorldGrid } from '../world/terrain';
 import type { Position } from '../types';
-import { getNextStep } from '../utils/pathfinding';
+import { findPath } from '../utils/pathfinding';
 import { moveUnit } from '../units/movement';
 
 /**
  * Simple rush strategy - move toward nearest enemy and attack.
  */
 export class ClaudeRushStrategy extends BaseStrategy {
-  makeDecision(unit: Unit, world: WorldGrid): boolean {
-    // Find nearest enemy (unit or building)
-    let nearestEnemy: Position | null = null;
+  private enemyPositionsCache: Position[] = [];
+  private cachedForFaction: any = null;
+
+  makeDecision(unit: Unit, world: WorldGrid, allFactions: import('../faction/Faction').Faction[]): boolean {
+    // Build enemy building positions list once per faction (reuse for all units in that faction)
+    if (this.cachedForFaction !== unit.faction) {
+      this.enemyPositionsCache = [];
+
+      for (const faction of allFactions) {
+        if (faction === unit.faction) continue;
+
+        // Only cache enemy buildings (not units)
+        for (const building of faction.buildings) {
+          this.enemyPositionsCache.push(building.position);
+        }
+      }
+
+      this.cachedForFaction = unit.faction;
+    }
+
+    // Find nearest enemy building from cached positions
+    let nearestBuilding: Position | null = null;
     let nearestDist = Infinity;
 
-    const mapHeight = world.length;
-    const mapWidth = world[0].length;
-
-    for (let row = 0; row < mapHeight; row++) {
-      for (let col = 0; col < mapWidth; col++) {
-        const tile = world[row][col];
-        const pos = { x: col, y: row };
-
-        // Check for enemy unit
-        if (tile.unit && tile.unit.faction !== unit.faction) {
-          const dist = this.manhattanDistance(unit.position, pos);
-          if (dist < nearestDist) {
-            nearestDist = dist;
-            nearestEnemy = pos;
-          }
-        }
-
-        // Check for enemy building
-        if (tile.building && tile.building.faction !== unit.faction) {
-          const dist = this.manhattanDistance(unit.position, pos);
-          if (dist < nearestDist) {
-            nearestDist = dist;
-            nearestEnemy = pos;
-          }
-        }
+    for (const pos of this.enemyPositionsCache) {
+      const dist = this.manhattanDistance(unit.position, pos);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearestBuilding = pos;
       }
     }
 
-    if (!nearestEnemy) {
+
+    if (!nearestBuilding) {
       return false;
     }
 
-    // Move toward enemy while we have movement points
-    let tookAction = false;
-    while (unit.movementPoints > 0) {
-      const nextStep = getNextStep(unit.position, nearestEnemy, world);
-      if (!nextStep) {
-        break;
-      }
+    // If building is adjacent (distance 1), attack/capture it
+    if (nearestDist === 1) {
+      return moveUnit(unit, unit.position, nearestBuilding, world);
+    }
 
+    // Use A* for nearby buildings (< 40 tiles), otherwise skip
+    if (nearestDist >= 40) {
+      return false;
+    }
+
+    // Calculate path using A*
+    const pathResult = findPath(unit.position, nearestBuilding, world, undefined, unit.faction);
+    if (!pathResult.found || pathResult.path.length <= 1) {
+      return false;
+    }
+
+    // Follow the path with available movement points
+    let tookAction = false;
+    let pathIndex = 1; // Start at 1 (skip current position)
+
+    while (unit.movementPoints > 0 && pathIndex < pathResult.path.length) {
+      const nextStep = pathResult.path[pathIndex];
       const moved = moveUnit(unit, unit.position, nextStep, world);
+
       if (!moved) {
         break;
       }
 
       tookAction = true;
+      pathIndex++;
     }
 
     return tookAction;
   }
 
   private manhattanDistance(a: Position, b: Position): number {
-    return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+    // Use true hex distance for odd-r offset coordinates by converting to cube coords
+    const aCube = this.offsetOddRToCube(a);
+    const bCube = this.offsetOddRToCube(b);
+    return (
+      Math.abs(aCube.x - bCube.x) +
+      Math.abs(aCube.y - bCube.y) +
+      Math.abs(aCube.z - bCube.z)
+    ) / 2;
+  }
+
+  private offsetOddRToCube(p: Position): { x: number; y: number; z: number } {
+    const x = p.x - ((p.y - (p.y & 1)) / 2);
+    const z = p.y;
+    const y = -x - z;
+    return { x, y, z };
   }
 }

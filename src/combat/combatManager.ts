@@ -16,8 +16,40 @@ export function executeAttack(
   const defenderTile = world[defenderPos.y][defenderPos.x];
   const defender = defenderTile.unit;
 
+  // If no defender unit, just capture the building
   if (!defender) {
-    throw new Error('No defender at target position');
+    const attackerTile = world[attackerPos.y][attackerPos.x];
+
+    // Check if leaving a farm
+    if (attackerTile.building?.type === 'farm' && attackerTile.building.faction === attacker.faction) {
+      attacker.faction.onFarmUnoccupied();
+    }
+
+    attackerTile.unit = undefined;
+    defenderTile.unit = attacker;
+    attacker.position = defenderPos;
+
+    // Capture building if present
+    if (defenderTile.building && defenderTile.building.faction !== attacker.faction) {
+      const building = defenderTile.building;
+      const oldFaction = building.faction;
+      oldFaction.removeBuilding(building);
+      building.faction = attacker.faction;
+      building.position = defenderPos;
+      attacker.faction.addBuilding(building);
+
+      // If captured a capital, defeat old faction and transfer assets
+      if (building.type === 'capital') {
+        oldFaction.transferAllAssetsTo(attacker.faction);
+      }
+    }
+
+    // Check if occupying a farm
+    if (defenderTile.building?.type === 'farm' && defenderTile.building.faction === attacker.faction) {
+      attacker.faction.onFarmOccupied();
+    }
+
+    return true;
   }
 
   // Resolve combat
@@ -52,6 +84,11 @@ export function executeAttack(
         building.faction = attacker.faction;
         building.position = defenderPos;
         attacker.faction.addBuilding(building);
+
+        // If captured a capital, defeat old faction and transfer assets
+        if (building.type === 'capital') {
+          oldFaction.transferAllAssetsTo(attacker.faction);
+        }
       }
 
       // Check if occupying a farm

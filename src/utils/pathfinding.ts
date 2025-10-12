@@ -1,5 +1,6 @@
 import type { Position } from '../types';
 import type { WorldGrid } from '../world/terrain';
+import type { Faction } from '../faction/Faction';
 import { TERRAIN_INFO } from '../world/terrain';
 import { getHexNeighbors } from './hexUtils';
 
@@ -13,10 +14,24 @@ export interface PathResult {
 }
 
 /**
- * Heuristic function for A* (Manhattan distance for hex grids)
+ * Heuristic function for A* using true hex distance.
+ * Converts odd-r offset coordinates to cube coords and computes cube distance.
  */
 function heuristic(a: Position, b: Position): number {
-  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+  const aCube = offsetOddRToCube(a);
+  const bCube = offsetOddRToCube(b);
+  return (
+    Math.abs(aCube.x - bCube.x) +
+    Math.abs(aCube.y - bCube.y) +
+    Math.abs(aCube.z - bCube.z)
+  ) / 2;
+}
+
+function offsetOddRToCube(p: Position): { x: number; y: number; z: number } {
+  const x = p.x - ((p.y - (p.y & 1)) / 2);
+  const z = p.y;
+  const y = -x - z;
+  return { x, y, z };
 }
 
 /**
@@ -34,7 +49,8 @@ export function findPath(
   start: Position,
   goal: Position,
   world: WorldGrid,
-  maxCost?: number
+  maxCost?: number,
+  movingFaction?: Faction
 ): PathResult {
   const mapWidth = world[0].length;
   const mapHeight = world.length;
@@ -54,6 +70,7 @@ export function findPath(
 
   // Priority queue (min-heap by fScore)
   const openSet: Position[] = [start];
+  const openSetKeys = new Set<string>([`${start.x},${start.y}`]);
 
   // For node n, cameFrom[key] is the node immediately preceding it on the cheapest path
   const cameFrom = new Map<string, Position>();
@@ -66,16 +83,28 @@ export function findPath(
   const fScore = new Map<string, number>();
   fScore.set(`${start.x},${start.y}`, heuristic(start, goal));
 
-  while (openSet.length > 0) {
-    // Get node with lowest fScore
-    openSet.sort((a, b) => {
-      const aScore = fScore.get(`${a.x},${a.y}`) ?? Infinity;
-      const bScore = fScore.get(`${b.x},${b.y}`) ?? Infinity;
-      return aScore - bScore;
-    });
+  // Limit iterations to prevent freezing
+  const maxIterations = 1000;
+  let iterations = 0;
 
-    const current = openSet.shift()!;
+  while (openSet.length > 0 && iterations < maxIterations) {
+    iterations++;
+    // Get node with lowest fScore (optimized - find min instead of full sort)
+    let minIndex = 0;
+    let minScore = fScore.get(`${openSet[0].x},${openSet[0].y}`) ?? Infinity;
+
+    for (let i = 1; i < openSet.length; i++) {
+      const score = fScore.get(`${openSet[i].x},${openSet[i].y}`) ?? Infinity;
+      if (score < minScore) {
+        minScore = score;
+        minIndex = i;
+      }
+    }
+
+    const current = openSet[minIndex];
+    openSet.splice(minIndex, 1);
     const currentKey = `${current.x},${current.y}`;
+    openSetKeys.delete(currentKey);
 
     // Reached goal
     if (current.x === goal.x && current.y === goal.y) {
@@ -91,9 +120,14 @@ export function findPath(
       const neighborKey = `${neighbor.x},${neighbor.y}`;
       const neighborTile = world[neighbor.y][neighbor.x];
 
-      // Skip tiles with any unit (friendly or enemy) unless it's the goal
+      // Treat allied units as obstacles. Allow passing through enemy units during pathfinding.
       if (neighborTile.unit && !(neighbor.x === goal.x && neighbor.y === goal.y)) {
-        continue;
+        const isAlly = movingFaction && neighborTile.unit.faction === movingFaction;
+        if (!movingFaction || isAlly) {
+          // If we don't know faction, preserve old behavior (block). If ally, block.
+          continue;
+        }
+        // Enemy unit: allowed in path plan; movement will resolve via attack.
       }
 
       // Get movement cost for this terrain
@@ -113,8 +147,9 @@ export function findPath(
         fScore.set(neighborKey, tentativeGScore + heuristic(neighbor, goal));
 
         // Add neighbor to openSet if not already there
-        if (!openSet.some(pos => pos.x === neighbor.x && pos.y === neighbor.y)) {
+        if (!openSetKeys.has(neighborKey)) {
           openSet.push(neighbor);
+          openSetKeys.add(neighborKey);
         }
       }
     }

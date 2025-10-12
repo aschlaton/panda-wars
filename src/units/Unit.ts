@@ -113,7 +113,12 @@ export abstract class Unit {
       finalDamage *= building.defenseMultiplier;
     }
 
-    const actualDamage = Math.max(0, finalDamage - this.defense);
+    let actualDamage = Math.round(Math.max(0, finalDamage));
+
+    // Enforce minimum damage of 1 for any positive hit
+    if (actualDamage === 0 && finalDamage > 0) {
+      actualDamage = 1;
+    }
     this.health -= actualDamage;
     this.health = Math.max(0, this.health);
   }
