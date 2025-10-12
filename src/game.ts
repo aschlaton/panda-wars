@@ -36,6 +36,8 @@ export class Game {
       this.update();
       if (this.needsRender) {
         this.renderer.render(this.state);
+        // Refresh minimap after render completes
+        this.renderer.refreshMinimap(this.state);
         this.needsRender = false;
       }
     });
@@ -57,9 +59,6 @@ export class Game {
 
     processGameTurn(this.state.factions, this.state.world);
     this.needsRender = true;
-
-    // Refresh minimap after processing a turn to reflect ownership changes
-    this.renderer.refreshMinimap(this.state);
   }
 
   generateWorld(): void {

@@ -83,17 +83,19 @@ export function findPath(
   const fScore = new Map<string, number>();
   fScore.set(`${start.x},${start.y}`, heuristic(start, goal));
 
-  // Limit iterations to prevent freezing
-  const maxIterations = 1000;
+  // Limit iterations to prevent freezing - reduce for better performance
+  const maxIterations = 500;
   let iterations = 0;
 
   while (openSet.length > 0 && iterations < maxIterations) {
     iterations++;
-    // Get node with lowest fScore (optimized - find min instead of full sort)
+    // Get node with lowest fScore - optimized with early exit
     let minIndex = 0;
     let minScore = fScore.get(`${openSet[0].x},${openSet[0].y}`) ?? Infinity;
 
-    for (let i = 1; i < openSet.length; i++) {
+    // Only search first 10 elements for better performance on large sets
+    const searchLimit = Math.min(openSet.length, 10);
+    for (let i = 1; i < searchLimit; i++) {
       const score = fScore.get(`${openSet[i].x},${openSet[i].y}`) ?? Infinity;
       if (score < minScore) {
         minScore = score;

@@ -11,6 +11,7 @@ import { moveUnit } from '../units/movement';
 export class ClaudeRushStrategy extends BaseStrategy {
   private enemyPositionsCache: Position[] = [];
   private cachedForFaction: any = null;
+  private unitPaths: Map<any, { path: Position[], target: Position }> = new Map();
 
   makeDecision(unit: Unit, world: WorldGrid, allFactions: import('../faction/Faction').Faction[]): boolean {
     // Build enemy building positions list once per faction (reuse for all units in that faction)
@@ -38,6 +39,11 @@ export class ClaudeRushStrategy extends BaseStrategy {
       if (dist < nearestDist) {
         nearestDist = dist;
         nearestBuilding = pos;
+
+        // Early exit if adjacent building found
+        if (dist === 1) {
+          break;
+        }
       }
     }
 
@@ -56,21 +62,46 @@ export class ClaudeRushStrategy extends BaseStrategy {
       return false;
     }
 
-    // Calculate path using A*
-    const pathResult = findPath(unit.position, nearestBuilding, world, undefined, unit.faction);
+    // Check if we have a cached path for this unit to the same target
+    const cachedPath = this.unitPaths.get(unit);
+    let pathResult: import('../utils/pathfinding').PathResult;
+
+    if (cachedPath && cachedPath.target.x === nearestBuilding.x && cachedPath.target.y === nearestBuilding.y) {
+      // Reuse cached path
+      pathResult = { path: cachedPath.path, cost: 0, found: true };
+    } else {
+      // Calculate new path using A*
+      pathResult = findPath(unit.position, nearestBuilding, world, undefined, unit.faction);
+
+      if (pathResult.found && pathResult.path.length > 1) {
+        // Cache the path
+        this.unitPaths.set(unit, { path: pathResult.path, target: nearestBuilding });
+      }
+    }
+
     if (!pathResult.found || pathResult.path.length <= 1) {
       return false;
     }
 
+    // Find current position in path
+    let pathIndex = 0;
+    for (let i = 0; i < pathResult.path.length; i++) {
+      if (pathResult.path[i].x === unit.position.x && pathResult.path[i].y === unit.position.y) {
+        pathIndex = i + 1;
+        break;
+      }
+    }
+
     // Follow the path with available movement points
     let tookAction = false;
-    let pathIndex = 1; // Start at 1 (skip current position)
 
     while (unit.movementPoints > 0 && pathIndex < pathResult.path.length) {
       const nextStep = pathResult.path[pathIndex];
       const moved = moveUnit(unit, unit.position, nextStep, world);
 
       if (!moved) {
+        // Path blocked, invalidate cache and recompute next turn
+        this.unitPaths.delete(unit);
         break;
       }
 

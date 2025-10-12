@@ -212,8 +212,21 @@ export class Renderer {
   }
 
   private renderDynamic(state: GameState): void {
-    // Clear dynamic layer (clears everything - tiles will be redrawn below)
-    this.dynamicContainer.removeChildren();
+    // Just clear children visually, don't destroy graphics objects
+    for (const child of this.dynamicContainer.children) {
+      (child as PIXI.Graphics).clear();
+    }
+
+    let graphicsIndex = 0;
+    const getGraphics = (): PIXI.Graphics => {
+      if (graphicsIndex < this.dynamicContainer.children.length) {
+        return this.dynamicContainer.children[graphicsIndex++] as PIXI.Graphics;
+      }
+      const g = new PIXI.Graphics();
+      this.dynamicContainer.addChild(g);
+      graphicsIndex++;
+      return g;
+    };
 
     // Render all buildings from faction sets (optimized - no map scan)
     for (const faction of state.factions) {
@@ -223,7 +236,7 @@ export class Renderer {
         const x = col * this.hexWidth + (row % 2) * (this.hexWidth / 2) + this.hexWidth / 2;
         const y = row * (this.hexRadius * 1.5) + this.hexRadius;
 
-        const building = new PIXI.Graphics();
+        const building = getGraphics();
         const buildingColor = buildingData.faction.color;
 
         if (buildingData.type === 'capital') {
@@ -278,7 +291,6 @@ export class Renderer {
             building.stroke({ width: this.hexRadius * 0.08, color: 0xffffff });
           }
 
-          this.dynamicContainer.addChild(building);
       }
     }
 
@@ -290,16 +302,23 @@ export class Renderer {
         const x = col * this.hexWidth + (row % 2) * (this.hexWidth / 2) + this.hexWidth / 2;
         const y = row * (this.hexRadius * 1.5) + this.hexRadius;
 
-        const unit = new PIXI.Graphics();
+        const unit = getGraphics();
         const unitColor = unitData.faction.color;
 
         const unitRadius = this.hexRadius * 0.4;
         unit.circle(x, y, unitRadius);
         unit.fill(unitColor);
         unit.stroke({ width: this.hexRadius * 0.06, color: 0xffffff });
-
-        this.dynamicContainer.addChild(unit);
       }
+    }
+
+    // Hide unused graphics objects
+    while (graphicsIndex < this.dynamicContainer.children.length) {
+      this.dynamicContainer.children[graphicsIndex++].visible = false;
+    }
+    // Show used ones
+    for (let i = 0; i < graphicsIndex; i++) {
+      this.dynamicContainer.children[i].visible = true;
     }
   }
 
