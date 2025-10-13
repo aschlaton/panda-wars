@@ -39,6 +39,10 @@ export class Minimap {
       autoDensity: true,
     });
 
+    // Prevent ticker from stopping when window loses focus
+    this.app.ticker.autoStart = true;
+    this.app.ticker.stop = () => {}; // Override stop to prevent pausing
+
     minimapDiv.appendChild(this.app.canvas);
     this.app.stage.addChild(this.container);
     this.app.stage.addChild(this.hoverRect);
@@ -169,18 +173,33 @@ export class Minimap {
   }
 
   render(world: WorldGrid, hexRadius: number, hexWidth: number, cols: number, rows: number): void {
-    this.container.removeChildren();
-
     if (!this.app) return;
+
+    // Clear existing graphics without removing children
+    for (const child of this.container.children) {
+      (child as PIXI.Graphics).clear();
+    }
 
     const minimapWidth = this.app.renderer.width;
     const minimapScale = minimapWidth / this.mapWidth;
     const minimapHexRadius = hexRadius * minimapScale;
 
+    let graphicsIndex = 0;
+    const getGraphics = (): PIXI.Graphics => {
+      if (graphicsIndex < this.container.children.length) {
+        return this.container.children[graphicsIndex++] as PIXI.Graphics;
+      }
+      const g = new PIXI.Graphics();
+      this.container.addChild(g);
+      graphicsIndex++;
+      return g;
+    };
+
+    // Render terrain tiles
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         const tile = world[row][col];
-        const minimapTile = new PIXI.Graphics();
+        const minimapTile = getGraphics();
 
         // Pointy-top hexagon positioning with odd-row offset
         const x = col * hexWidth + (row % 2) * (hexWidth / 2) + hexWidth / 2;
@@ -192,7 +211,6 @@ export class Minimap {
         const color = TERRAIN_INFO[tile.terrainType].color;
         this.drawHexagon(minimapTile, minimapX, minimapY, minimapHexRadius);
         minimapTile.fill(color);
-        this.container.addChild(minimapTile);
       }
     }
 
@@ -200,15 +218,16 @@ export class Minimap {
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         const tile = world[row][col];
-        const x = col * hexWidth + (row % 2) * (hexWidth / 2) + hexWidth / 2;
-        const y = row * (hexRadius * 1.5) + hexRadius;
-
-        const minimapX = x * minimapScale;
-        const minimapY = y * minimapScale;
 
         // Render buildings
         if (tile.building) {
-          const marker = new PIXI.Graphics();
+          const x = col * hexWidth + (row % 2) * (hexWidth / 2) + hexWidth / 2;
+          const y = row * (hexRadius * 1.5) + hexRadius;
+
+          const minimapX = x * minimapScale;
+          const minimapY = y * minimapScale;
+
+          const marker = getGraphics();
           const color = tile.building.faction.color;
 
           if (tile.building.type === 'capital') {
@@ -222,19 +241,6 @@ export class Minimap {
             marker.fill(color);
             marker.stroke({ width: hexRadius * minimapScale * 0.6, color: 0xffffff });
           }
-
-          this.container.addChild(marker);
-        }
-
-        // Render units (on top of buildings)
-        if (tile.unit) {
-          const unitMarker = new PIXI.Graphics();
-          const color = tile.unit.faction.color;
-
-          unitMarker.circle(minimapX, minimapY, hexRadius * minimapScale * 1.0);
-          unitMarker.fill(color);
-
-          this.container.addChild(unitMarker);
         }
       }
     }

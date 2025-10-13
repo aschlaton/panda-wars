@@ -1,47 +1,23 @@
 import type { Faction } from '../faction/Faction';
 import type { WorldGrid } from '../world/terrain';
-
-/**
- * Process a single faction's turn.
- * 1. Reset movement points
- * 2. Process building production
- * 3. Make decisions for each unit using faction's strategy
- */
-export function processFactionTurn(faction: Faction, world: WorldGrid): void {
-  // 1. Reset movement points for all units
-  for (const unit of faction.units) {
-    unit.resetMovement();
-  }
-
-  // 2. Process building production
-  for (const building of faction.buildings) {
-    building.processTurn(world);
-  }
-
-  // 3. Make decisions for each unit using faction's strategy
-  if (!faction.strategy) return; // No strategy = skip unit AI entirely
-
-  // Create a copy of units since units might die during iteration
-  const unitsCopy = [...faction.units];
-
-  for (const unit of unitsCopy) {
-    // Skip if unit died during this turn
-    if (!unit.isAlive()) continue;
-
-    // Make decision using faction's strategy - pass all factions for enemy finding
-    faction.strategy.makeDecision(unit, world, []);
-  }
-}
+import type { GameState } from '../types';
+import { processArmies } from '../armies/armyMovement';
 
 /**
  * Process a full game turn (all factions take their turn sequentially).
  */
-export function processGameTurn(factions: Faction[], world: WorldGrid): void {
+export function processGameTurn(state: GameState): void {
   const turnStart = performance.now();
 
-  for (const faction of factions) {
+  if (!state.world) return;
+
+  for (const faction of state.factions) {
     const factionStart = performance.now();
-    processFactionTurnWithFactions(faction, world, factions);
+    processFactionTurnWithFactions(faction, state.world, state.factions, state);
+
+    // Process armies for this faction immediately after their turn
+    processArmiesForFaction(state, faction);
+
     const factionTime = performance.now() - factionStart;
 
     if (factionTime > 100) {
@@ -56,26 +32,23 @@ export function processGameTurn(factions: Faction[], world: WorldGrid): void {
 }
 
 /**
+ * Process armies for a specific faction
+ */
+function processArmiesForFaction(state: GameState, faction: Faction): void {
+  processArmies(state, faction);
+}
+
+/**
  * Process a single faction's turn with access to all factions.
  */
-function processFactionTurnWithFactions(faction: Faction, world: WorldGrid, allFactions: Faction[]): void {
-  // 1. Reset movement points for all units
-  for (const unit of faction.units) {
-    unit.resetMovement();
-  }
-
-  // 2. Process building production
+function processFactionTurnWithFactions(faction: Faction, world: WorldGrid, allFactions: Faction[], state: GameState): void {
+  // 1. Process building production
   for (const building of faction.buildings) {
     building.processTurn(world);
   }
 
-  // 3. Make decisions for each unit using faction's strategy
+  // 2. Make decisions using faction's strategy (now creates armies instead of moving units)
   if (!faction.strategy) return;
 
-  const unitsCopy = [...faction.units];
-
-  for (const unit of unitsCopy) {
-    if (!unit.isAlive()) continue;
-    faction.strategy.makeDecision(unit, world, allFactions);
-  }
+  faction.strategy.makeDecision(faction, allFactions, state);
 }

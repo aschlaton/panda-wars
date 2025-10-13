@@ -28,14 +28,18 @@ export class Renderer {
   private hexWidth: number = 0;
   private terrainRendered: boolean = false;
   private currentState: GameState | null = null;
+  private highlightGraphics: PIXI.Graphics | null = null;
+  private hoveredTile: { col: number; row: number } | null = null;
 
   constructor() {
     this.app = new PIXI.Application();
     this.worldContainer = new PIXI.Container();
     this.terrainContainer = new PIXI.Container();
     this.dynamicContainer = new PIXI.Container();
+    this.highlightGraphics = new PIXI.Graphics();
     this.worldContainer.addChild(this.terrainContainer);
     this.worldContainer.addChild(this.dynamicContainer);
+    this.worldContainer.addChild(this.highlightGraphics);
     this.minimap = new Minimap();
   }
 
@@ -52,6 +56,10 @@ export class Renderer {
       premultipliedAlpha: true,
     });
 
+    // Prevent ticker from stopping when window loses focus
+    this.app.ticker.autoStart = true;
+    this.app.ticker.stop = () => {}; // Override stop to prevent pausing
+
     this.app.canvas.id = 'game-container';
     container.appendChild(this.app.canvas);
     this.app.stage.addChild(this.worldContainer);
@@ -64,6 +72,11 @@ export class Renderer {
     // Handle clicks on the canvas to show tile info
     this.app.canvas.addEventListener('click', (e) => {
       this.onCanvasClick(e);
+    });
+
+    // Handle mouse move for hover highlight
+    this.app.canvas.addEventListener('mousemove', (e) => {
+      this.onCanvasHover(e);
     });
 
     // Prevent browser zoom
@@ -294,22 +307,50 @@ export class Renderer {
       }
     }
 
-    // Render all units from faction sets (optimized - no map scan)
-    for (const faction of state.factions) {
-      for (const unitData of faction.units) {
-        const col = unitData.position.x;
-        const row = unitData.position.y;
-        const x = col * this.hexWidth + (row % 2) * (this.hexWidth / 2) + this.hexWidth / 2;
-        const y = row * (this.hexRadius * 1.5) + this.hexRadius;
+    // Render all armies (use single graphics object for all paths to reduce draw calls)
+    const pathsGraphics = getGraphics();
 
-        const unit = getGraphics();
-        const unitColor = unitData.faction.color;
+    for (const army of state.armies) {
+      // Draw traversed path
+      if (army.path.length > 1) {
+        pathsGraphics.moveTo(
+          army.path[0].x * this.hexWidth + (army.path[0].y % 2) * (this.hexWidth / 2) + this.hexWidth / 2,
+          army.path[0].y * (this.hexRadius * 1.5) + this.hexRadius
+        );
 
-        const unitRadius = this.hexRadius * 0.4;
-        unit.circle(x, y, unitRadius);
-        unit.fill(unitColor);
-        unit.stroke({ width: this.hexRadius * 0.06, color: 0xffffff });
+        for (let i = 1; i < army.path.length; i++) {
+          const px = army.path[i].x * this.hexWidth + (army.path[i].y % 2) * (this.hexWidth / 2) + this.hexWidth / 2;
+          const py = army.path[i].y * (this.hexRadius * 1.5) + this.hexRadius;
+          pathsGraphics.lineTo(px, py);
+        }
       }
+
+      // Draw planned route (straight line from current to target)
+      const currentX = army.position.x * this.hexWidth + (army.position.y % 2) * (this.hexWidth / 2) + this.hexWidth / 2;
+      const currentY = army.position.y * (this.hexRadius * 1.5) + this.hexRadius;
+      const targetX = army.targetPosition.x * this.hexWidth + (army.targetPosition.y % 2) * (this.hexWidth / 2) + this.hexWidth / 2;
+      const targetY = army.targetPosition.y * (this.hexRadius * 1.5) + this.hexRadius;
+
+      pathsGraphics.moveTo(currentX, currentY);
+      pathsGraphics.lineTo(targetX, targetY);
+    }
+
+    pathsGraphics.stroke({ width: 2, color: 0xFFFFFF, alpha: 0.3 });
+
+    // Draw army circles
+    for (const army of state.armies) {
+      const col = army.position.x;
+      const row = army.position.y;
+      const x = col * this.hexWidth + (row % 2) * (this.hexWidth / 2) + this.hexWidth / 2;
+      const y = row * (this.hexRadius * 1.5) + this.hexRadius;
+
+      const armyGraphics = getGraphics();
+      const armyColor = army.faction.color;
+
+      const armyRadius = this.hexRadius * 0.5;
+      armyGraphics.circle(x, y, armyRadius);
+      armyGraphics.fill(armyColor);
+      armyGraphics.stroke({ width: this.hexRadius * 0.08, color: 0xffffff });
     }
 
     // Hide unused graphics objects
@@ -367,27 +408,84 @@ export class Renderer {
     this.minimap.updateViewport(this.worldContainer.x, this.worldContainer.y, this.zoomLevel, this.mapWidth, this.mapHeight);
   }
 
+  public resetForNewWorld(): void {
+    // Clear existing terrain and dynamic layers and reset sizing flags
+    this.terrainContainer.removeChildren();
+    this.dynamicContainer.removeChildren();
+
+    this.terrainRendered = false;
+    this.hexRadius = 0;
+    this.hexWidth = 0;
+    this.mapWidth = 0;
+    this.mapHeight = 0;
+
+    // Reset camera/zoom
+    this.zoomLevel = MIN_ZOOM;
+    this.worldContainer.scale.set(this.zoomLevel);
+    this.worldContainer.x = 0;
+    this.worldContainer.y = 0;
+  }
+
   private onResize(): void {
     // Update minimap viewport when window resizes
     this.minimap.updateViewport(this.worldContainer.x, this.worldContainer.y, this.zoomLevel, this.mapWidth, this.mapHeight);
   }
 
-  private onCanvasClick(e: MouseEvent): void {
-    if (!this.currentState || !this.currentState.world) return;
+  private screenToHexCoords(screenX: number, screenY: number): { col: number; row: number } | null {
+    if (!this.currentState || !this.currentState.world) return null;
 
     // Convert screen coordinates to world coordinates
-    const worldX = (e.clientX - this.worldContainer.x) / this.zoomLevel;
-    const worldY = (e.clientY - this.worldContainer.y) / this.zoomLevel;
+    const worldX = (screenX - this.worldContainer.x) / this.zoomLevel;
+    const worldY = (screenY - this.worldContainer.y) / this.zoomLevel;
 
-    // Convert world coordinates to hex grid coordinates
-    const col = Math.floor((worldX - this.hexWidth / 2) / this.hexWidth);
-    const row = Math.floor((worldY - this.hexRadius) / (this.hexRadius * 1.5));
+    // Convert world coordinates to hex grid coordinates using axial offset
+    const row = Math.round((worldY - this.hexRadius) / (this.hexRadius * 1.5));
+    const col = Math.round((worldX - this.hexWidth / 2 - (row % 2) * (this.hexWidth / 2)) / this.hexWidth);
 
     // Check bounds
     if (col < 0 || col >= this.currentState.mapWidth || row < 0 || row >= this.currentState.mapHeight) {
+      return null;
+    }
+
+    return { col, row };
+  }
+
+  private onCanvasHover(e: MouseEvent): void {
+    const coords = this.screenToHexCoords(e.clientX, e.clientY);
+
+    if (!coords) {
+      // Clear highlight
+      if (this.hoveredTile) {
+        this.hoveredTile = null;
+        this.highlightGraphics?.clear();
+      }
       return;
     }
 
+    // Check if hovering different tile
+    if (!this.hoveredTile || this.hoveredTile.col !== coords.col || this.hoveredTile.row !== coords.row) {
+      this.hoveredTile = coords;
+      this.drawHighlight(coords.col, coords.row);
+    }
+  }
+
+  private drawHighlight(col: number, row: number): void {
+    if (!this.highlightGraphics) return;
+
+    this.highlightGraphics.clear();
+
+    const x = col * this.hexWidth + (row % 2) * (this.hexWidth / 2) + this.hexWidth / 2;
+    const y = row * (this.hexRadius * 1.5) + this.hexRadius;
+
+    this.drawHexagon(this.highlightGraphics, x, y, this.hexRadius);
+    this.highlightGraphics.stroke({ width: 2, color: 0xFFFFFF, alpha: 0.5 });
+  }
+
+  private onCanvasClick(e: MouseEvent): void {
+    const coords = this.screenToHexCoords(e.clientX, e.clientY);
+    if (!coords || !this.currentState?.world) return;
+
+    const { col, row } = coords;
     const tile = this.currentState.world[row][col];
 
     // Build popup content
@@ -400,17 +498,19 @@ export class Renderer {
       content += `<div style="font-weight: bold;">Building: ${tile.building.type}</div>`;
       content += `<div>Faction: ${tile.building.faction.id}</div>`;
       content += `<div>Defense: ${tile.building.defenseMultiplier}x</div>`;
-      content += `</div>`;
-    }
+      content += `<div>Garrison: ${tile.building.garrison.length}/${tile.building.capacity}</div>`;
 
-    if (tile.unit) {
-      content += `<div style="padding-top: 8px; border-top: 1px solid #666;">`;
-      content += `<div style="font-weight: bold;">Unit: ${tile.unit.type}</div>`;
-      content += `<div>Faction: ${tile.unit.faction.id}</div>`;
-      content += `<div>HP: ${tile.unit.health}/${tile.unit.maxHealth}</div>`;
-      content += `<div>Attack: ${tile.unit.attack} | Defense: ${tile.unit.defense}</div>`;
-      content += `<div>Combat Type: ${tile.unit.combatType}</div>`;
-      content += `<div>Movement: ${tile.unit.movementPoints}/${tile.unit.maxMovementPoints}</div>`;
+      if (tile.building.garrison.length > 0) {
+        content += `<div style="margin-top: 4px; font-size: 11px;">Units:</div>`;
+        const unitCounts = new Map<string, number>();
+        for (const unit of tile.building.garrison) {
+          unitCounts.set(unit.type, (unitCounts.get(unit.type) || 0) + 1);
+        }
+        for (const [type, count] of unitCounts) {
+          content += `<div style="font-size: 11px; margin-left: 8px;">- ${count}x ${type}</div>`;
+        }
+      }
+
       content += `</div>`;
     }
 

@@ -23,6 +23,7 @@ export class Game {
       mapHeight: MAP_HEIGHT,
       factions: [],
       world: null,
+      armies: [],
     };
   }
 
@@ -32,12 +33,21 @@ export class Game {
   }
 
   start(): void {
+    // Render minimap once at start
+    this.renderer.refreshMinimap(this.state);
+
+    let frameCount = 0;
+
     this.renderer.app.ticker.add(() => {
       this.update();
       if (this.needsRender) {
         this.renderer.render(this.state);
-        // Refresh minimap after render completes
-        this.renderer.refreshMinimap(this.state);
+        // Refresh minimap if buildings changed hands or every 60 frames
+        frameCount++;
+        if (this.state.minimapNeedsUpdate || frameCount % 60 === 0) {
+          this.renderer.refreshMinimap(this.state);
+          this.state.minimapNeedsUpdate = false;
+        }
         this.needsRender = false;
       }
     });
@@ -57,18 +67,21 @@ export class Game {
   private processTurn(): void {
     if (!this.state.world) return;
 
-    processGameTurn(this.state.factions, this.state.world);
+    processGameTurn(this.state);
     this.needsRender = true;
   }
 
   generateWorld(): void {
+    // Reset renderer so terrain is rebuilt for the new world
+    this.renderer.resetForNewWorld();
+
     // Generate world using Perlin noise
     this.state.world = generateWorld(this.state.mapWidth, this.state.mapHeight, WORLD_OCTAVES);
 
     // Generate starting positions for factions
     const startingPositions = generateStartingPositions(this.state.world, FACTION_COLORS.length);
 
-    // Initialize factions with starting positions and AI strategy
+    // Initialize factions with starting positions and AI strategy (shared strategy instance is fine now)
     const rushStrategy = new ClaudeRushStrategy();
     this.state.factions = FACTION_COLORS.map((color, id) => new Faction(id, color, startingPositions[id], rushStrategy));
 
@@ -89,8 +102,13 @@ export class Game {
     // Generate neutral settlements (6 guaranteed per player faction + ~21 random)
     generateSettlements(this.state.world, startingPositions, 45, neutralFaction);
 
+    // Build global cache of all buildings (set once after world generation)
+    this.state.allBuildings = this.state.factions.flatMap(f => Array.from(f.buildings));
+
     this.state.worldGenerated = true;
     this.needsRender = true;
+
+    this.renderer.refreshMinimap(this.state);
   }
 
   getState(): GameState {

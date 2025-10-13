@@ -1,66 +1,29 @@
 import { Building } from './Building';
 import type { Unit } from '../units/Unit';
-import type { WorldGrid } from '../world/terrain';
 import type { Position } from '../types';
 import type { Faction } from '../faction/Faction';
 import { Warrior, Archer, Monk, Farmer } from '../units/troops';
-import { TerrainType } from '../world/terrain';
-import { getHexRadius } from '../utils/hexUtils';
 
 export class Capital extends Building {
+  public originalOwner: Faction; // Track who this capital originally belonged to
+
   constructor(faction: Faction, position: Position) {
-    super('capital', faction, position, 0.75, 3, 1); // 25% damage reduction, produces every 3 turns, starts at ticker 1 (spawns immediately)
+    super('capital', faction, position, 0.75, 3, 1, 25); // 25% damage reduction, produces every 3 turns, starts at ticker 1, capacity 25
+    this.originalOwner = faction; // Set original owner at creation
   }
 
-  protected generateTroop(world: WorldGrid, position: Position, faction: Faction): { troop: Unit; spawnPos: Position } | null {
-    const mapWidth = world[0].length;
-    const mapHeight = world.length;
-
-    // Calculate troop type probabilities based on surrounding terrain
-    const surroundingTiles = getHexRadius(position, 1, mapWidth, mapHeight);
-
-    let grassCount = 0;
-    let forestCount = 0;
-    let mountainCount = 0;
-
-    for (const pos of surroundingTiles) {
-      const tile = world[pos.y][pos.x];
-      if (tile.terrainType === TerrainType.Grass) grassCount++;
-      else if (tile.terrainType === TerrainType.Forest) forestCount++;
-      else if (tile.terrainType === TerrainType.Mountain) mountainCount++;
-    }
-
-    // Calculate probabilities (10% base + 10% per matching terrain)
-    const warriorChance = 10 + grassCount * 10;
-    const archerChance = 10 + forestCount * 10;
-    const monkChance = 10 + mountainCount * 10;
-
-    // Random selection based on weighted probabilities
-    const total = warriorChance + archerChance + monkChance;
-    const roll = Math.random() * total;
-
-    let troopType: 'warrior' | 'archer' | 'monk';
-    if (roll < warriorChance) {
-      troopType = 'warrior';
-    } else if (roll < warriorChance + archerChance) {
-      troopType = 'archer';
-    } else {
-      troopType = 'monk';
-    }
-
-    // Try to find valid spawn position
-    const spawnPosition = this.findSpawnPosition(world, position, mapWidth, mapHeight);
-    if (!spawnPosition) return null;
-
-    // Create and place troop with faction's food score
+  protected createTroop(): Unit {
+    // Random troop type
+    const roll = Math.random();
     const foodScore = this.faction.getFoodScore();
-    let troop: Unit;
-    if (troopType === 'warrior') troop = new Warrior(this.faction, spawnPosition, foodScore);
-    else if (troopType === 'archer') troop = new Archer(this.faction, spawnPosition, foodScore);
-    else troop = new Monk(this.faction, spawnPosition, foodScore);
 
-    this.placeTroop(troop, world, spawnPosition);
-    return { troop, spawnPos: spawnPosition };
+    if (roll < 0.33) {
+      return new Warrior(this.faction, this.position, foodScore);
+    } else if (roll < 0.66) {
+      return new Archer(this.faction, this.position, foodScore);
+    } else {
+      return new Monk(this.faction, this.position, foodScore);
+    }
   }
 
 }
@@ -70,9 +33,9 @@ export class Settlement extends Building {
     super('settlement', faction, position, 0.85, null, -1); // 15% damage reduction, no production
   }
 
-  protected generateTroop(_world: WorldGrid, _position: Position, _faction: Faction): { troop: Unit; spawnPos: Position } | null {
-    // Settlements don't produce yet
-    return null;
+  protected createTroop(): Unit {
+    // Settlements don't produce
+    throw new Error('Settlement should not produce troops');
   }
 }
 
@@ -81,19 +44,10 @@ export class ArcheryRange extends Building {
     super('archery_range', faction, position, 0.85, 3, 3); // 15% damage reduction, starts at 3 turns
   }
 
-  protected generateTroop(world: WorldGrid, position: Position, faction: Faction): { troop: Unit; spawnPos: Position } | null {
-    const mapWidth = world[0].length;
-    const mapHeight = world.length;
-
-    const spawnPosition = this.findSpawnPosition(world, position, mapWidth, mapHeight);
-    if (!spawnPosition) return null;
-
+  protected createTroop(): Unit {
     const foodScore = this.faction.getFoodScore();
-    const troop = new Archer(this.faction, spawnPosition, foodScore);
-    this.placeTroop(troop, world, spawnPosition);
-    return { troop, spawnPos: spawnPosition };
+    return new Archer(this.faction, this.position, foodScore);
   }
-
 }
 
 export class Monastery extends Building {
@@ -101,19 +55,10 @@ export class Monastery extends Building {
     super('monastery', faction, position, 0.85, 3, 3); // 15% damage reduction, starts at 3 turns
   }
 
-  protected generateTroop(world: WorldGrid, position: Position, faction: Faction): { troop: Unit; spawnPos: Position } | null {
-    const mapWidth = world[0].length;
-    const mapHeight = world.length;
-
-    const spawnPosition = this.findSpawnPosition(world, position, mapWidth, mapHeight);
-    if (!spawnPosition) return null;
-
+  protected createTroop(): Unit {
     const foodScore = this.faction.getFoodScore();
-    const troop = new Monk(this.faction, spawnPosition, foodScore);
-    this.placeTroop(troop, world, spawnPosition);
-    return { troop, spawnPos: spawnPosition };
+    return new Monk(this.faction, this.position, foodScore);
   }
-
 }
 
 export class Barracks extends Building {
@@ -121,20 +66,10 @@ export class Barracks extends Building {
     super('barracks', faction, position, 0.85, 3, 3); // 15% damage reduction, starts at 3 turns
   }
 
-  protected generateTroop(world: WorldGrid, position: Position, faction: Faction): { troop: Unit; spawnPos: Position } | null {
-    const mapWidth = world[0].length;
-    const mapHeight = world.length;
-
-    const spawnPosition = this.findSpawnPosition(world, position, mapWidth, mapHeight);
-    if (!spawnPosition) return null;
-
+  protected createTroop(): Unit {
     const foodScore = this.faction.getFoodScore();
-    const troop = new Warrior(this.faction, spawnPosition, foodScore);
-    this.placeTroop(troop, world, spawnPosition);
-
-    return { troop, spawnPos: spawnPosition };
+    return new Warrior(this.faction, this.position, foodScore);
   }
-
 }
 
 export class Farm extends Building {
@@ -142,18 +77,8 @@ export class Farm extends Building {
     super('farm', faction, position, 1.0, 3, 3); // No defense bonus (1.0x = full damage), starts at 3 turns
   }
 
-  protected generateTroop(world: WorldGrid, position: Position, faction: Faction): { troop: Unit; spawnPos: Position } | null {
-    // Can only spawn on the farm tile itself
-    const farmTile = world[position.y][position.x];
-
-    if (!this.isValidSpawnTile(farmTile)) {
-      return null;
-    }
-
+  protected createTroop(): Unit {
     const foodScore = this.faction.getFoodScore();
-    const troop = new Farmer(this.faction, position, foodScore);
-    this.placeTroop(troop, world, position);
-    return { troop, spawnPos: position };
+    return new Farmer(this.faction, this.position, foodScore);
   }
-
 }

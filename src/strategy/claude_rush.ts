@@ -1,112 +1,59 @@
 import { BaseStrategy } from './Strategy';
-import type { Unit } from '../units/Unit';
-import type { WorldGrid } from '../world/terrain';
 import type { Position } from '../types';
-import { findPath } from '../utils/pathfinding';
-import { moveUnit } from '../units/movement';
+import type { GameState } from '../types';
+import type { Faction } from '../faction/Faction';
+import { Army } from '../armies/Army';
 
 /**
- * Simple rush strategy - move toward nearest enemy and attack.
+ * Army-based rush strategy - send armies from buildings to attack nearest enemy buildings
  */
 export class ClaudeRushStrategy extends BaseStrategy {
-  private enemyPositionsCache: Position[] = [];
-  private cachedForFaction: any = null;
-  private unitPaths: Map<any, { path: Position[], target: Position }> = new Map();
-
-  makeDecision(unit: Unit, world: WorldGrid, allFactions: import('../faction/Faction').Faction[]): boolean {
-    // Build enemy building positions list once per faction (reuse for all units in that faction)
-    if (this.cachedForFaction !== unit.faction) {
-      this.enemyPositionsCache = [];
-
-      for (const faction of allFactions) {
-        if (faction === unit.faction) continue;
-
-        // Only cache enemy buildings (not units)
-        for (const building of faction.buildings) {
-          this.enemyPositionsCache.push(building.position);
-        }
-      }
-
-      this.cachedForFaction = unit.faction;
-    }
-
-    // Find nearest enemy building from cached positions
-    let nearestBuilding: Position | null = null;
-    let nearestDist = Infinity;
-
-    for (const pos of this.enemyPositionsCache) {
-      const dist = this.manhattanDistance(unit.position, pos);
-      if (dist < nearestDist) {
-        nearestDist = dist;
-        nearestBuilding = pos;
-
-        // Early exit if adjacent building found
-        if (dist === 1) {
-          break;
-        }
-      }
-    }
-
-
-    if (!nearestBuilding) {
+  makeDecision(faction: Faction, allFactions: Faction[], state: GameState): boolean {
+    // Use global building cache and filter enemies
+    if (!state.allBuildings || state.allBuildings.length === 0) {
       return false;
     }
 
-    // If building is adjacent (distance 1), attack/capture it
-    if (nearestDist === 1) {
-      return moveUnit(unit, unit.position, nearestBuilding, world);
-    }
+    const enemyBuildings = state.allBuildings.filter(b => b.faction !== faction);
 
-    // Use A* for nearby buildings (< 40 tiles), otherwise skip
-    if (nearestDist >= 40) {
-      return false;
-    }
-
-    // Check if we have a cached path for this unit to the same target
-    const cachedPath = this.unitPaths.get(unit);
-    let pathResult: import('../utils/pathfinding').PathResult;
-
-    if (cachedPath && cachedPath.target.x === nearestBuilding.x && cachedPath.target.y === nearestBuilding.y) {
-      // Reuse cached path
-      pathResult = { path: cachedPath.path, cost: 0, found: true };
-    } else {
-      // Calculate new path using A*
-      pathResult = findPath(unit.position, nearestBuilding, world, undefined, unit.faction);
-
-      if (pathResult.found && pathResult.path.length > 1) {
-        // Cache the path
-        this.unitPaths.set(unit, { path: pathResult.path, target: nearestBuilding });
-      }
-    }
-
-    if (!pathResult.found || pathResult.path.length <= 1) {
-      return false;
-    }
-
-    // Find current position in path
-    let pathIndex = 0;
-    for (let i = 0; i < pathResult.path.length; i++) {
-      if (pathResult.path[i].x === unit.position.x && pathResult.path[i].y === unit.position.y) {
-        pathIndex = i + 1;
-        break;
-      }
-    }
-
-    // Follow the path with available movement points
     let tookAction = false;
 
-    while (unit.movementPoints > 0 && pathIndex < pathResult.path.length) {
-      const nextStep = pathResult.path[pathIndex];
-      const moved = moveUnit(unit, unit.position, nextStep, world);
+    // Limit to max 3 armies per turn to avoid spam
+    let armiesSent = 0;
+    const maxArmiesPerTurn = 3;
 
-      if (!moved) {
-        // Path blocked, invalidate cache and recompute next turn
-        this.unitPaths.delete(unit);
-        break;
+    // Iterate directly without creating intermediate array
+    for (const building of faction.buildings) {
+      if (armiesSent >= maxArmiesPerTurn) break;
+
+      // Only send armies from buildings with 5+ units
+      if (building.garrison.length < 5) continue;
+
+      // Find nearest enemy building
+      let nearestEnemy = null;
+      let nearestDist = Infinity;
+
+      for (const enemyBuilding of enemyBuildings) {
+        const dist = this.manhattanDistance(building.position, enemyBuilding.position);
+        if (dist < nearestDist) {
+          nearestDist = dist;
+          nearestEnemy = enemyBuilding;
+        }
       }
 
-      tookAction = true;
-      pathIndex++;
+      if (!nearestEnemy) continue;
+
+      // Send army if we have enough units (at least 3, and leave at least 2 in garrison)
+      const unitsToSend = Math.max(3, building.garrison.length - 2);
+      if (unitsToSend >= 3 && building.garrison.length >= unitsToSend) {
+        // Create army
+        const armyUnits = building.garrison.splice(0, unitsToSend);
+        const army = new Army(armyUnits, building, nearestEnemy, faction);
+        state.armies.push(army);
+        console.log(`🚀 Army created: ${unitsToSend} units from (${building.position.x},${building.position.y}) → (${nearestEnemy.position.x},${nearestEnemy.position.y})`);
+        tookAction = true;
+        armiesSent++;
+      }
     }
 
     return tookAction;

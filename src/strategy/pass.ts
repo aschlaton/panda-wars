@@ -1,14 +1,13 @@
 import { BaseStrategy } from './Strategy';
-import type { Unit } from '../units/Unit';
-import type { WorldGrid } from '../world/terrain';
 import type { Faction } from '../faction/Faction';
+import type { GameState } from '../types';
 
 /**
- * Pass strategy - units do nothing.
+ * Pass strategy - faction does nothing.
  * Useful for neutral factions or player-controlled factions.
  */
 export class PassStrategy extends BaseStrategy {
-  makeDecision(_unit: Unit, _world: WorldGrid, _allFactions: Faction[]): boolean {
+  makeDecision(_faction: Faction, _allFactions: Faction[], _state: GameState): boolean {
     // Always pass (do nothing)
     return false;
   }

@@ -1,5 +1,6 @@
 import type { WorldGrid } from './world/terrain';
 import type { Faction } from './faction/Faction';
+import type { Army } from './armies/Army';
 
 export type { WorldGrid, Tile } from './world/terrain';
 export { TerrainType } from './world/terrain';
@@ -12,4 +13,7 @@ export type GameState = {
   mapHeight: number;
   factions: Faction[];
   world: WorldGrid | null;
+  armies: Army[];
+  minimapNeedsUpdate?: boolean;
+  allBuildings?: import('./buildings/Building').Building[]; // Global cache of all buildings
 };
