@@ -398,9 +398,9 @@ export class Renderer {
 
   private async loadUnitTextures(): Promise<void> {
     const textures = await Promise.all([
-      PIXI.Assets.load('/assets/units/panda-monk.png'),
-      PIXI.Assets.load('/assets/units/panda-warrior.png'),
-      PIXI.Assets.load('/assets/units/panda-archer.png'),
+      PIXI.Assets.load('/panda-wars/assets/units/panda-monk.png'),
+      PIXI.Assets.load('/panda-wars/assets/units/panda-warrior.png'),
+      PIXI.Assets.load('/panda-wars/assets/units/panda-archer.png'),
     ]);
 
     this.unitTextures.set('monk', textures[0]);

@@ -1,20 +1,16 @@
 import type { Position } from '../types';
 
 /**
- * Get the 6 neighboring hexagon positions for a pointy-top hex grid with odd-row offset.
- * In this coordinate system, odd rows are offset to the right by half a hex width.
+ * Get the 6 neighboring hexagon positions.
+ * odd rows are offset to the right by half a hex width.
  */
 export function getHexNeighbors(pos: Position, mapWidth: number, mapHeight: number): Position[] {
   const { x: col, y: row } = pos;
   const neighbors: Position[] = [];
 
-  // For pointy-top hexagons with odd-row offset:
-  // Even rows: neighbors have standard offsets
-  // Odd rows: neighbors are shifted due to offset
 
   const isOddRow = row % 2 === 1;
 
-  // For odd-row offset pointy-top hexagons (odd rows shift right by 0.5 hex):
   // Even rows (0, 2, 4...): diagonal neighbors at col±1
   // Odd rows (1, 3, 5...): NE/SE at col+1, NW/SW at same col
   const offsets = isOddRow

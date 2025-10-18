@@ -50,7 +50,6 @@ export class ClaudeRushStrategy extends BaseStrategy {
         const armyUnits = building.garrison.splice(0, unitsToSend);
         const army = new Army(armyUnits, building, nearestEnemy, faction);
         state.armies.push(army);
-        console.log(`🚀 Army created: ${unitsToSend} units from (${building.position.x},${building.position.y}) → (${nearestEnemy.position.x},${nearestEnemy.position.y})`);
         tookAction = true;
         armiesSent++;
       }

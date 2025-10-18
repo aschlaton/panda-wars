@@ -15,19 +15,7 @@ export function processGameTurn(state: GameState): void {
     const factionStart = performance.now();
     processFactionTurnWithFactions(faction, state.world, state.factions, state);
 
-    // Process armies for this faction immediately after their turn
     processArmiesForFaction(state, faction);
-
-    const factionTime = performance.now() - factionStart;
-
-    if (factionTime > 100) {
-      console.log(`Faction ${faction.id} took ${factionTime.toFixed(2)}ms (${faction.units.size} units)`);
-    }
-  }
-
-  const totalTime = performance.now() - turnStart;
-  if (totalTime > 500) {
-    console.log(`⚠️ Turn took ${totalTime.toFixed(2)}ms`);
   }
 }
 

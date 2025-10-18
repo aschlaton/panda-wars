@@ -1,13 +1,13 @@
 export function createMenu(container: HTMLElement): {
   addMenuItem: (text: string, onClick: () => void) => void;
 } {
-  // Create hamburger button
+  // Hamburger button
   const menuToggle = document.createElement('button');
   menuToggle.id = 'menu-toggle';
   menuToggle.innerHTML = '<span></span><span></span><span></span>';
   container.appendChild(menuToggle);
 
-  // Create side menu
+  // Side menu
   const sideMenu = document.createElement('div');
   sideMenu.id = 'side-menu';
   container.appendChild(sideMenu);

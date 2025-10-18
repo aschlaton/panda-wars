@@ -60,13 +60,13 @@ function computeDotProducts(
   return dots;
 }
 
-// Smooth interpolation using smoothstep function
+//interpolation for perlin noise
+
 function smoothInterp(t: number, a: number, b: number): number {
   const smoothT = 6 * t ** 5 - 15 * t ** 4 + 10 * t ** 3;
   return (1 - smoothT) * a + smoothT * b;
 }
 
-// Bilinear interpolation of dot products
 function interpolate(dots: number[][], x: number, y: number): number {
   const dx = x - Math.floor(x);
   const dy = y - Math.floor(y);

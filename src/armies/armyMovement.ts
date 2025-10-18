@@ -25,23 +25,19 @@ export function processArmies(state: GameState, faction?: import('../faction/Fac
 
     // Move army
     const reachedDestination = army.move();
-
-    // Check for interceptions - if army passes through enemy building
     const interceptBuilding = checkForInterception(army, state.world);
 
+    // if intercepting, resolve battle early
     if (interceptBuilding) {
-      // Attack intercepted building instead
       resolveBattle(army, interceptBuilding, state);
-      // Don't keep army after battle
     } else if (reachedDestination) {
       // Check if target is still an enemy before attacking
+      // if not, garrison units there
       if (army.targetBuilding.faction !== army.faction) {
         resolveBattle(army, army.targetBuilding, state);
       } else {
-        // Target became friendly - garrison units there
         army.targetBuilding.garrison.push(...army.units.filter(u => u.isAlive()));
       }
-      // Don't keep army after battle
     } else {
       // Army is still moving
       armiesToKeep.push(army);

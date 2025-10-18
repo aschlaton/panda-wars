@@ -93,6 +93,9 @@ export class Game {
     // Reset renderer so terrain is rebuilt for the new world
     this.renderer.resetForNewWorld();
 
+    // Clear existing armies and reset state
+    this.state.armies = [];
+
     // Generate world using Perlin noise
     this.state.world = generateWorld(this.state.mapWidth, this.state.mapHeight, WORLD_OCTAVES);
 

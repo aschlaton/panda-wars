@@ -11,8 +11,6 @@ export function resolveBattle(army: Army, building: Building, state: GameState):
   const attackers = army.units.filter(u => u.isAlive());
   const defenders = building.garrison.filter(u => u.isAlive());
 
-  console.log(`⚔️ Battle: ${attackers.length} attackers vs ${defenders.length} defenders at (${building.position.x},${building.position.y})`);
-
   if (attackers.length === 0) {
     // No attackers left
     return false;
@@ -91,10 +89,6 @@ export function resolveBattle(army: Army, building: Building, state: GameState):
       const defenderDamage = livingDefender2.getEffectiveDefense(livingAttacker2);
       livingAttacker2.takeDamage(defenderDamage);
     }
-  }
-
-  if (round >= maxRounds) {
-    console.warn(`⚠️ Combat hit max rounds! ${attackers.length} attackers vs ${defenders.length} defenders`);
   }
 
   // Check who won
