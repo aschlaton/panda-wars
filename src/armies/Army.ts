@@ -13,6 +13,7 @@ export class Army {
   public movementSpeed: number;
   public startPosition: Position; // Track where army started
   public path: Position[] = []; // Track path taken
+  public mostCommonUnitType: string; // Cached most common unit type
 
   constructor(
     units: Unit[],
@@ -33,6 +34,38 @@ export class Army {
 
     // Initialize path with starting position
     this.path = [{ ...this.position }];
+
+    // Compute most common unit type (monk > warrior > archer tiebreaker)
+    this.mostCommonUnitType = this.computeMostCommonUnitType();
+  }
+
+  private computeMostCommonUnitType(): string {
+    const counts = new Map<string, number>();
+    for (const unit of this.units) {
+      counts.set(unit.type, (counts.get(unit.type) || 0) + 1);
+    }
+
+    let maxCount = 0;
+    let mostCommon = 'warrior';
+
+    // Check monk first (highest priority)
+    if (counts.has('monk') && counts.get('monk')! >= maxCount) {
+      maxCount = counts.get('monk')!;
+      mostCommon = 'monk';
+    }
+
+    // Then warrior
+    if (counts.has('warrior') && counts.get('warrior')! > maxCount) {
+      maxCount = counts.get('warrior')!;
+      mostCommon = 'warrior';
+    }
+
+    // Then archer
+    if (counts.has('archer') && counts.get('archer')! > maxCount) {
+      mostCommon = 'archer';
+    }
+
+    return mostCommon;
   }
 
   /**

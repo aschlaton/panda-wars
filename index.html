@@ -2,12 +2,61 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/png" href="/assets/units/panda-monk.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Panda Wars</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+      #controls {
+        position: fixed;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.8);
+        padding: 10px 20px;
+        border-radius: 8px;
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        font-family: monospace;
+        color: white;
+        z-index: 1000;
+      }
+      #controls button {
+        padding: 6px 12px;
+        background: #444;
+        color: white;
+        border: 1px solid #666;
+        border-radius: 4px;
+        cursor: pointer;
+        font-family: monospace;
+      }
+      #controls button:hover {
+        background: #555;
+      }
+      #controls input[type="range"] {
+        width: 150px;
+      }
+      #controls label {
+        font-size: 12px;
+      }
+    </style>
   </head>
   <body>
     <div id="app"></div>
+    <div id="controls">
+      <button id="pauseBtn">Pause</button>
+      <button id="nextTurnBtn">Next Turn</button>
+      <label>
+        Speed:
+        <input type="range" id="speedSlider" min="0.5" max="6" step="0.5">
+        <span id="speedLabel">1.0x</span>
+      </label>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

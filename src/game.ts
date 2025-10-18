@@ -13,7 +13,8 @@ export class Game {
   private state: GameState;
   private needsRender: boolean = false;
   private turnTimer: number = 0;
-  private readonly TURN_INTERVAL: number = 60; // Turns every 60 frames (1 second at 60fps)
+  private turnInterval: number = 60; // Turns every 60 frames (1 second at 60fps)
+  private autoPaused: boolean = false;
 
   constructor(renderer: Renderer) {
     this.renderer = renderer;
@@ -55,13 +56,30 @@ export class Game {
 
   private update(): void {
     if (!this.state.worldGenerated) return;
+    if (this.autoPaused) return;
 
     // Process game turns
     this.turnTimer++;
-    if (this.turnTimer >= this.TURN_INTERVAL) {
+    if (this.turnTimer >= this.turnInterval) {
       this.turnTimer = 0;
       this.processTurn();
     }
+  }
+
+  public togglePause(): void {
+    this.autoPaused = !this.autoPaused;
+  }
+
+  public isPaused(): boolean {
+    return this.autoPaused;
+  }
+
+  public nextTurn(): void {
+    this.processTurn();
+  }
+
+  public setTurnSpeed(framesPerTurn: number): void {
+    this.turnInterval = framesPerTurn;
   }
 
   private processTurn(): void {

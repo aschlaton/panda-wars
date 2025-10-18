@@ -45,3 +45,6 @@ export const DEFENDER_DAMAGE_MULTIPLIER = 0.85;
 
 // Food score settings
 export const NEUTRAL_FOOD_SCORE = 0.5;
+
+// Game speed settings
+export const DEFAULT_GAME_SPEED = 2.0;

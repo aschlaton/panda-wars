@@ -8,7 +8,7 @@ import { Army } from '../armies/Army';
  * Army-based rush strategy - send armies from buildings to attack nearest enemy buildings
  */
 export class ClaudeRushStrategy extends BaseStrategy {
-  makeDecision(faction: Faction, allFactions: Faction[], state: GameState): boolean {
+  makeDecision(faction: Faction, _allFactions: Faction[], state: GameState): boolean {
     // Use global building cache and filter enemies
     if (!state.allBuildings || state.allBuildings.length === 0) {
       return false;

@@ -30,6 +30,7 @@ export class Renderer {
   private currentState: GameState | null = null;
   private highlightGraphics: PIXI.Graphics | null = null;
   private hoveredTile: { col: number; row: number } | null = null;
+  private unitTextures: Map<string, PIXI.Texture> = new Map();
 
   constructor() {
     this.app = new PIXI.Application();
@@ -63,6 +64,9 @@ export class Renderer {
     this.app.canvas.id = 'game-container';
     container.appendChild(this.app.canvas);
     this.app.stage.addChild(this.worldContainer);
+
+    // Load unit textures
+    await this.loadUnitTextures();
 
     // Handle window resize
     window.addEventListener('resize', () => {
@@ -225,15 +229,23 @@ export class Renderer {
   }
 
   private renderDynamic(state: GameState): void {
-    // Just clear children visually, don't destroy graphics objects
+    // Clear graphics objects only (not sprites)
     for (const child of this.dynamicContainer.children) {
-      (child as PIXI.Graphics).clear();
+      if (child instanceof PIXI.Graphics) {
+        child.clear();
+      } else if (child instanceof PIXI.Sprite) {
+        child.visible = false;
+      }
     }
 
     let graphicsIndex = 0;
     const getGraphics = (): PIXI.Graphics => {
-      if (graphicsIndex < this.dynamicContainer.children.length) {
-        return this.dynamicContainer.children[graphicsIndex++] as PIXI.Graphics;
+      // Find next Graphics object (skip Sprites)
+      while (graphicsIndex < this.dynamicContainer.children.length) {
+        const child = this.dynamicContainer.children[graphicsIndex++];
+        if (child instanceof PIXI.Graphics) {
+          return child;
+        }
       }
       const g = new PIXI.Graphics();
       this.dynamicContainer.addChild(g);
@@ -337,30 +349,63 @@ export class Renderer {
 
     pathsGraphics.stroke({ width: 2, color: 0xFFFFFF, alpha: 0.3 });
 
-    // Draw army circles
+    // Draw army sprites (find or create from pool)
+    let spriteIndex = 0;
     for (const army of state.armies) {
       const col = army.position.x;
       const row = army.position.y;
       const x = col * this.hexWidth + (row % 2) * (this.hexWidth / 2) + this.hexWidth / 2;
       const y = row * (this.hexRadius * 1.5) + this.hexRadius;
 
-      const armyGraphics = getGraphics();
-      const armyColor = army.faction.color;
+      // Get sprite for most common unit type
+      const unitType = army.mostCommonUnitType;
+      const texture = this.unitTextures.get(unitType);
 
-      const armyRadius = this.hexRadius * 0.5;
-      armyGraphics.circle(x, y, armyRadius);
-      armyGraphics.fill(armyColor);
-      armyGraphics.stroke({ width: this.hexRadius * 0.08, color: 0xffffff });
+      if (texture) {
+        // Find or create sprite (search through children)
+        let sprite: PIXI.Sprite | null = null;
+        for (let i = 0; i < this.dynamicContainer.children.length; i++) {
+          const child = this.dynamicContainer.children[i];
+          if (child instanceof PIXI.Sprite && !child.visible) {
+            sprite = child;
+            break;
+          }
+        }
+
+        if (!sprite) {
+          sprite = new PIXI.Sprite(texture);
+          this.dynamicContainer.addChild(sprite);
+          sprite.anchor.set(0.5);
+        }
+
+        // Update sprite
+        sprite.texture = texture;
+        const scale = (this.hexRadius * 1.0) / 32;
+        sprite.scale.set(scale);
+        sprite.position.set(x, y);
+        sprite.tint = 0xFFFFFF; // No tint
+        sprite.visible = true;
+
+        // Draw hex border around tile with faction color
+        const border = getGraphics();
+        this.drawHexagon(border, x, y, this.hexRadius);
+        border.stroke({ width: 1, color: army.faction.color });
+        spriteIndex++;
+      }
     }
 
-    // Hide unused graphics objects
-    while (graphicsIndex < this.dynamicContainer.children.length) {
-      this.dynamicContainer.children[graphicsIndex++].visible = false;
-    }
-    // Show used ones
-    for (let i = 0; i < graphicsIndex; i++) {
-      this.dynamicContainer.children[i].visible = true;
-    }
+  }
+
+  private async loadUnitTextures(): Promise<void> {
+    const textures = await Promise.all([
+      PIXI.Assets.load('/assets/units/panda-monk.png'),
+      PIXI.Assets.load('/assets/units/panda-warrior.png'),
+      PIXI.Assets.load('/assets/units/panda-archer.png'),
+    ]);
+
+    this.unitTextures.set('monk', textures[0]);
+    this.unitTextures.set('warrior', textures[1]);
+    this.unitTextures.set('archer', textures[2]);
   }
 
   render(state: GameState): void {
@@ -488,10 +533,35 @@ export class Renderer {
     const { col, row } = coords;
     const tile = this.currentState.world[row][col];
 
+    // Check if there's an army on this tile
+    const army = this.currentState.armies.find(a => a.position.x === col && a.position.y === row);
+
     // Build popup content
     let content = `<div style="font-family: monospace; padding: 10px; background: rgba(0,0,0,0.9); color: white; border: 2px solid #fff; border-radius: 5px; max-width: 300px;">`;
     content += `<div style="font-weight: bold; margin-bottom: 8px;">Tile (${col}, ${row})</div>`;
     content += `<div style="margin-bottom: 8px;">Terrain: ${tile.terrainType}</div>`;
+
+    if (army) {
+      content += `<div style="margin-bottom: 8px; padding-top: 8px; border-top: 1px solid #666;">`;
+      content += `<div style="font-weight: bold;">Army</div>`;
+      content += `<div>Faction: ${army.faction.id}</div>`;
+      content += `<div>Units: ${army.units.length}</div>`;
+      content += `<div>From: (${army.sourceBuilding.position.x}, ${army.sourceBuilding.position.y})</div>`;
+      content += `<div>To: (${army.targetBuilding.position.x}, ${army.targetBuilding.position.y})</div>`;
+
+      if (army.units.length > 0) {
+        content += `<div style="margin-top: 4px; font-size: 11px;">Composition:</div>`;
+        const unitCounts = new Map<string, number>();
+        for (const unit of army.units) {
+          unitCounts.set(unit.type, (unitCounts.get(unit.type) || 0) + 1);
+        }
+        for (const [type, count] of unitCounts) {
+          content += `<div style="font-size: 11px; margin-left: 8px;">- ${count}x ${type}</div>`;
+        }
+      }
+
+      content += `</div>`;
+    }
 
     if (tile.building) {
       content += `<div style="margin-bottom: 8px; padding-top: 8px; border-top: 1px solid #666;">`;
