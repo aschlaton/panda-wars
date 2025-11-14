@@ -2,41 +2,35 @@ import type { Faction } from '../faction/Faction';
 import type { WorldGrid } from '../world/terrain';
 import type { GameState } from '../types';
 import { processArmies } from '../armies/armyMovement';
+import { Army } from '../armies/Army';
 
-/**
- * Process a full game turn (all factions take their turn sequentially).
- */
 export function processGameTurn(state: GameState): void {
-  const turnStart = performance.now();
-
   if (!state.world) return;
 
   for (const faction of state.factions) {
-    const factionStart = performance.now();
     processFactionTurnWithFactions(faction, state.world, state.factions, state);
-
     processArmiesForFaction(state, faction);
   }
 }
 
-/**
- * Process armies for a specific faction
- */
 function processArmiesForFaction(state: GameState, faction: Faction): void {
   processArmies(state, faction);
 }
 
-/**
- * Process a single faction's turn with access to all factions.
- */
 function processFactionTurnWithFactions(faction: Faction, world: WorldGrid, allFactions: Faction[], state: GameState): void {
-  // 1. Process building production
   for (const building of faction.buildings) {
     building.processTurn(world);
   }
 
-  // 2. Make decisions using faction's strategy (now creates armies instead of moving units)
   if (!faction.strategy) return;
 
-  faction.strategy.makeDecision(faction, allFactions, state);
+  const decision = faction.strategy.makeDecision(faction, allFactions, state);
+
+  for (const armyDecision of decision.armies) {
+    if (armyDecision.sourceBuilding.garrison.length < armyDecision.unitCount) continue;
+
+    const units = armyDecision.sourceBuilding.garrison.splice(0, armyDecision.unitCount);
+    const army = new Army(units, armyDecision.sourceBuilding, armyDecision.targetBuilding, faction);
+    state.armies.push(army);
+  }
 }

@@ -2,34 +2,24 @@ import { BaseStrategy } from './Strategy';
 import type { Position } from '../types';
 import type { GameState } from '../types';
 import type { Faction } from '../faction/Faction';
-import { Army } from '../armies/Army';
+import type { StrategyDecision } from './Strategy';
 
-/**
- * Army-based rush strategy - send armies from buildings to attack nearest enemy buildings
- */
 export class ClaudeRushStrategy extends BaseStrategy {
-  makeDecision(faction: Faction, _allFactions: Faction[], state: GameState): boolean {
-    // Use global building cache and filter enemies
+  makeDecision(faction: Faction, _allFactions: Faction[], state: GameState): StrategyDecision {
+    const armies: StrategyDecision['armies'] = [];
+
     if (!state.allBuildings || state.allBuildings.length === 0) {
-      return false;
+      return { armies };
     }
 
     const enemyBuildings = state.allBuildings.filter(b => b.faction !== faction);
-
-    let tookAction = false;
-
-    // Limit to max 3 armies per turn to avoid spam
     let armiesSent = 0;
     const maxArmiesPerTurn = 3;
 
-    // Iterate directly without creating intermediate array
     for (const building of faction.buildings) {
       if (armiesSent >= maxArmiesPerTurn) break;
-
-      // Only send armies from buildings with 5+ units
       if (building.garrison.length < 5) continue;
 
-      // Find nearest enemy building
       let nearestEnemy = null;
       let nearestDist = Infinity;
 
@@ -43,19 +33,18 @@ export class ClaudeRushStrategy extends BaseStrategy {
 
       if (!nearestEnemy) continue;
 
-      // Send army if we have enough units (at least 3, and leave at least 2 in garrison)
       const unitsToSend = Math.max(3, building.garrison.length - 2);
       if (unitsToSend >= 3 && building.garrison.length >= unitsToSend) {
-        // Create army
-        const armyUnits = building.garrison.splice(0, unitsToSend);
-        const army = new Army(armyUnits, building, nearestEnemy, faction);
-        state.armies.push(army);
-        tookAction = true;
+        armies.push({
+          sourceBuilding: building,
+          targetBuilding: nearestEnemy,
+          unitCount: unitsToSend
+        });
         armiesSent++;
       }
     }
 
-    return tookAction;
+    return { armies };
   }
 
   private manhattanDistance(a: Position, b: Position): number {
