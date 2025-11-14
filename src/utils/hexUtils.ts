@@ -1,9 +1,40 @@
 import type { Position } from '../types';
+import * as PIXI from 'pixi.js';
 
-/**
- * Get the 6 neighboring hexagon positions.
- * odd rows are offset to the right by half a hex width.
- */
+export function drawHexagon(graphics: PIXI.Graphics, x: number, y: number, size: number): void {
+  const points: number[] = [];
+  for (let i = 0; i < 6; i++) {
+    const angle = (Math.PI / 3) * i + Math.PI / 6;
+    points.push(x + size * Math.cos(angle));
+    points.push(y + size * Math.sin(angle));
+  }
+  graphics.poly(points);
+}
+
+export function screenToHexCoords(
+  screenX: number,
+  screenY: number,
+  worldContainerX: number,
+  worldContainerY: number,
+  zoomLevel: number,
+  hexRadius: number,
+  hexWidth: number,
+  mapWidth: number,
+  mapHeight: number
+): { col: number; row: number } | null {
+  const worldX = (screenX - worldContainerX) / zoomLevel;
+  const worldY = (screenY - worldContainerY) / zoomLevel;
+
+  const row = Math.round((worldY - hexRadius) / (hexRadius * 1.5));
+  const col = Math.round((worldX - hexWidth / 2 - (row % 2) * (hexWidth / 2)) / hexWidth);
+
+  if (col < 0 || col >= mapWidth || row < 0 || row >= mapHeight) {
+    return null;
+  }
+
+  return { col, row };
+}
+
 export function getHexNeighbors(pos: Position, mapWidth: number, mapHeight: number): Position[] {
   const { x: col, y: row } = pos;
   const neighbors: Position[] = [];

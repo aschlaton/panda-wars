@@ -28,31 +28,33 @@ body {
   position: fixed;
   top: 20px;
   left: 20px;
-  width: 50px;
-  height: 50px;
-  background-color: rgba(50, 50, 50, 0.9);
-  border: none;
-  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  background-color: #000;
+  border: 1px solid #fff;
   cursor: pointer;
   z-index: 1000;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 6px;
-  transition: background-color 0.2s;
+  gap: 5px;
+  transition: all 0.2s;
 }
 
 #menu-toggle:hover {
-  background-color: rgba(70, 70, 70, 0.9);
+  background-color: #fff;
+}
+
+#menu-toggle:hover span {
+  background-color: #000;
 }
 
 #menu-toggle span {
-  width: 30px;
-  height: 3px;
-  background-color: white;
-  border-radius: 2px;
-  transition: all 0.3s;
+  width: 20px;
+  height: 2px;
+  background-color: #fff;
+  transition: all 0.2s;
 }
 
 /* Side menu */
@@ -62,11 +64,11 @@ body {
   left: -300px;
   width: 300px;
   height: 100vh;
-  background-color: #2c3e50;
-  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
+  background-color: #000;
+  border-right: 1px solid #fff;
   z-index: 999;
   transition: left 0.3s ease;
-  padding: 80px 20px 20px 20px;
+  padding: 70px 20px 20px 20px;
 }
 
 #side-menu.open {
@@ -75,24 +77,81 @@ body {
 
 #side-menu button {
   width: 100%;
-  padding: 12px 24px;
-  font-size: 16px;
-  font-weight: 600;
-  background-color: #3498db;
-  color: white;
-  border: none;
-  border-radius: 6px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 400;
+  background-color: transparent;
+  color: #fff;
+  border: 1px solid #fff;
   cursor: pointer;
-  transition: background-color 0.2s;
-  margin-bottom: 10px;
+  transition: all 0.2s;
+  margin-bottom: 8px;
+  text-align: left;
 }
 
 #side-menu button:hover {
-  background-color: #2980b9;
+  background-color: #fff;
+  color: #000;
 }
 
 #side-menu button:active {
-  background-color: #21618c;
+  background-color: #fff;
+  color: #000;
+}
+
+#menu-stats {
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #fff;
+}
+
+.menu-stats-content h3 {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  font-weight: 400;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.menu-stat-item {
+  display: flex;
+  justify-content: space-between;
+  margin: 10px 0;
+  font-size: 13px;
+}
+
+.stat-label {
+  color: #fff;
+  font-weight: 300;
+}
+
+.stat-value {
+  color: #fff;
+  font-weight: 400;
+}
+
+.menu-factions {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #fff;
+}
+
+.menu-faction-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+  font-size: 12px;
+  color: #fff;
+  font-weight: 300;
+}
+
+.menu-faction-item .faction-color {
+  width: 12px;
+  height: 12px;
+  border: 1px solid #fff;
+  flex-shrink: 0;
 }
 
 /* Minimap */
@@ -110,4 +169,102 @@ body {
 #minimap canvas {
   display: block;
   cursor: none !important;
+}
+
+/* Stats Modal */
+#stats-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.8);
+  z-index: 2000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.stats-content {
+  background-color: #2c3e50;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.stats-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 2px solid #34495e;
+}
+
+.stats-header h2 {
+  margin: 0;
+  font-size: 24px;
+  color: #ecf0f1;
+}
+
+.stats-close {
+  background: none;
+  border: none;
+  color: #ecf0f1;
+  font-size: 32px;
+  cursor: pointer;
+  padding: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.stats-close:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.stats-body {
+  padding: 20px;
+}
+
+.stats-section {
+  margin-bottom: 24px;
+}
+
+.stats-section h3 {
+  margin: 0 0 12px 0;
+  font-size: 18px;
+  color: #3498db;
+  border-bottom: 1px solid #34495e;
+  padding-bottom: 8px;
+}
+
+.stats-section p {
+  margin: 8px 0;
+  color: #ecf0f1;
+  font-size: 14px;
+}
+
+.faction-stat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+  padding: 8px;
+  background-color: rgba(52, 73, 94, 0.5);
+  border-radius: 4px;
+}
+
+.faction-color {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid #444;
+  flex-shrink: 0;
 }

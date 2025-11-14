@@ -1,6 +1,7 @@
 import * as PIXI from 'pixi.js';
 import type { WorldGrid } from '../world/terrain';
 import { TERRAIN_INFO } from '../world/terrain';
+import { drawHexagon } from '../utils/hexUtils';
 import {
   MINIMAP_WIDTH,
   MINIMAP_OVERLAY_COLOR,
@@ -209,7 +210,7 @@ export class Minimap {
         const minimapY = y * minimapScale;
 
         const color = TERRAIN_INFO[tile.terrainType].color;
-        this.drawHexagon(minimapTile, minimapX, minimapY, minimapHexRadius);
+        drawHexagon(minimapTile, minimapX, minimapY, minimapHexRadius);
         minimapTile.fill(color);
       }
     }
@@ -246,16 +247,6 @@ export class Minimap {
     }
   }
 
-  private drawHexagon(graphics: PIXI.Graphics, x: number, y: number, size: number): void {
-    const points: number[] = [];
-    for (let i = 0; i < 6; i++) {
-      // Add PI/6 offset for pointy-top hexagons
-      const angle = (Math.PI / 3) * i + Math.PI / 6;
-      points.push(x + size * Math.cos(angle));
-      points.push(y + size * Math.sin(angle));
-    }
-    graphics.poly(points);
-  }
 
   onViewportChange(callback: (x: number, y: number) => void): void {
     this.viewportChangeCallback = callback;

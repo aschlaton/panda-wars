@@ -1,7 +1,7 @@
 import { Renderer } from './renderer';
 import type { GameState } from './types';
 import { generateWorld, generateStartingPositions, generateSettlements } from './world/worldGen';
-import { MAP_WIDTH, MAP_HEIGHT, FACTION_COLORS, WORLD_OCTAVES } from './constants';
+import { MAP_WIDTH, MAP_HEIGHT, FACTION_COLORS, WORLD_OCTAVES, getFactionName } from './constants';
 import { Capital } from './buildings/buildingTypes';
 import { Faction } from './faction/Faction';
 import { processGameTurn } from './turns/turnSystem';
@@ -134,5 +134,27 @@ export class Game {
 
   getState(): GameState {
     return this.state;
+  }
+
+  getStats() {
+    const state = this.state;
+    const activeFactions = state.factions.filter(f => !f.isNeutral && !f.defeated);
+    const totalBuildings = state.allBuildings?.length || 0;
+    const totalUnits = state.factions.reduce((sum, f) => sum + f.units.size, 0);
+
+    return {
+      worldGenerated: state.worldGenerated,
+      mapSize: `${state.mapWidth}x${state.mapHeight}`,
+      activeFactions: activeFactions.length,
+      totalFactions: state.factions.filter(f => !f.isNeutral).length,
+      totalBuildings,
+      totalUnits,
+      factions: activeFactions.map(f => ({
+        name: getFactionName(f.color, f.isNeutral, f.id),
+        color: `#${f.color.toString(16).padStart(6, '0')}`,
+        buildings: f.buildings.size,
+        units: f.units.size,
+      }))
+    };
   }
 }

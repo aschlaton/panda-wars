@@ -16,8 +16,12 @@ async function init() {
   const game = new Game(renderer);
 
   // Create hamburger menu
-  const menu = createMenu(appContainer);
-  menu.addMenuItem('Generate World', () => game.generateWorld());
+  const menu = createMenu(appContainer, () => game.getStats());
+  menu.updateStats(game.getStats());
+  menu.addMenuItem('Generate World', () => {
+    game.generateWorld();
+    menu.updateStats(game.getStats());
+  });
 
   // Setup turn controls
   const pauseBtn = document.getElementById('pauseBtn') as HTMLButtonElement;

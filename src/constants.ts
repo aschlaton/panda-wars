@@ -5,6 +5,20 @@ export const FACTION_COLORS = [
   0xffff00, // Yellow
 ] as const;
 
+export const FACTION_COLOR_NAMES: Record<number, string> = {
+  0xff0000: 'Red',
+  0x00ff00: 'Green',
+  0x0000ff: 'Blue',
+  0xffff00: 'Yellow',
+};
+
+export function getFactionName(color: number, isNeutral: boolean, id: number): string {
+  if (isNeutral) {
+    return 'Neutral';
+  }
+  return FACTION_COLOR_NAMES[color] || `Faction ${id}`;
+}
+
 export const MAP_WIDTH = 150;
 export const MAP_HEIGHT = 80;
 
