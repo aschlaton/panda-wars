@@ -2,6 +2,7 @@ import type { Unit } from '../units/Unit';
 import type { Position } from '../types';
 import type { Faction } from '../faction/Faction';
 import type { Building } from '../buildings/Building';
+import { ARMY_MOVEMENT_SPEED } from '../constants';
 
 export class Army {
   public units: Unit[];
@@ -29,8 +30,7 @@ export class Army {
     this.targetBuilding = targetBuilding;
     this.faction = faction;
 
-    // Fixed movement speed for all armies
-    this.movementSpeed = 3;
+    this.movementSpeed = ARMY_MOVEMENT_SPEED;
 
     // Initialize path with starting position
     this.path = [{ ...this.position }];

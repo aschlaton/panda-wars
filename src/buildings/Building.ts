@@ -2,6 +2,7 @@ import type { Unit } from '../units/Unit';
 import type { WorldGrid } from '../world/terrain';
 import type { Faction } from '../faction/Faction';
 import type { Position } from '../types';
+import { NEUTRAL_BUILDING_CAPACITY, PRODUCTION_INTERVAL_MIN, PRODUCTION_INTERVAL_MAX } from '../constants';
 
 export abstract class Building {
   public type: string;
@@ -30,8 +31,7 @@ export abstract class Building {
   public processTurn(_world: WorldGrid): Unit | null {
     if (this.productionInterval === null) return null;
 
-    // Neutral factions have a max capacity of 5
-    const effectiveCapacity = this.faction.isNeutral ? Math.min(this.capacity, 5) : this.capacity;
+    const effectiveCapacity = this.faction.isNeutral ? Math.min(this.capacity, NEUTRAL_BUILDING_CAPACITY) : this.capacity;
 
     // Don't produce if at capacity
     if (this.garrison.length >= effectiveCapacity) return null;
@@ -48,8 +48,7 @@ export abstract class Building {
     this.faction.addUnit(troop);
     this.productionTicker = this.productionInterval;
 
-    // Randomize next production interval to 3, 4, or 5
-    this.productionInterval = Math.floor(Math.random() * 3) + 3;
+    this.productionInterval = Math.floor(Math.random() * (PRODUCTION_INTERVAL_MAX - PRODUCTION_INTERVAL_MIN + 1)) + PRODUCTION_INTERVAL_MIN;
 
     return troop;
   }

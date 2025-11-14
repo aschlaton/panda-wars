@@ -78,6 +78,12 @@ export function getHexNeighbors(pos: Position, mapWidth: number, mapHeight: numb
 /**
  * Get all positions within a given radius (including the center position).
  */
+export function hexToPixel(col: number, row: number, hexRadius: number, hexWidth: number): { x: number; y: number } {
+  const x = col * hexWidth + (row % 2) * (hexWidth / 2) + hexWidth / 2;
+  const y = row * (hexRadius * 1.5) + hexRadius;
+  return { x, y };
+}
+
 export function getHexRadius(center: Position, radius: number, mapWidth: number, mapHeight: number): Position[] {
   if (radius === 0) return [center];
 

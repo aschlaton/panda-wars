@@ -50,10 +50,7 @@ async function init() {
     speedLabel.textContent = `${speed.toFixed(1)}x`;
   });
 
-  // Initialize game state (generates world)
   game.init();
-
-  // Start game loop
   game.start();
 }
 

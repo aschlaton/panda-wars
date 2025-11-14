@@ -1,5 +1,6 @@
 import * as PIXI from 'pixi.js';
 import type { Building } from '../buildings/Building';
+import { hexToPixel } from '../utils/hexUtils';
 
 export class BuildingRenderer {
   private hexRadius: number;
@@ -11,10 +12,7 @@ export class BuildingRenderer {
   }
 
   render(building: Building, graphics: PIXI.Graphics): void {
-    const col = building.position.x;
-    const row = building.position.y;
-    const x = col * this.hexWidth + (row % 2) * (this.hexWidth / 2) + this.hexWidth / 2;
-    const y = row * (this.hexRadius * 1.5) + this.hexRadius;
+    const { x, y } = hexToPixel(building.position.x, building.position.y, this.hexRadius, this.hexWidth);
     const buildingColor = building.faction.color;
 
     if (building.type === 'capital') {

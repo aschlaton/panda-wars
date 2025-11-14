@@ -2,6 +2,7 @@ import type { Army } from '../armies/Army';
 import type { Building } from '../buildings/Building';
 import type { GameState } from '../types';
 import type { Unit } from '../units/Unit';
+import { MAX_COMBAT_ROUNDS } from '../constants';
 
 /**
  * Resolve battle between an army and a building's garrison
@@ -22,12 +23,9 @@ export function resolveBattle(army: Army, building: Building, state: GameState):
     return true;
   }
 
-  // Combat rounds - repeat until one side is eliminated
   let round = 0;
-  const maxRounds = 1000; // Safety limit to prevent infinite loops
 
-  while (round < maxRounds) {
-    // Find first living attacker and defender (no array allocation)
+  while (round < MAX_COMBAT_ROUNDS) {
     let livingAttacker: Unit | null = null;
     let livingDefender: Unit | null = null;
     let aliveAttackerCount = 0;
@@ -150,6 +148,5 @@ function captureBuilding(building: Building, newFaction: import('../faction/Fact
       // Only transfer if the current owner is the original owner
       oldFaction.transferAllAssetsTo(newFaction);
     }
-    // Otherwise, it's just a regular building capture (no asset transfer)
   }
 }

@@ -6,7 +6,7 @@ import { TilePopup } from './ui/TilePopup';
 import { Camera } from './renderer/Camera';
 import { BuildingRenderer } from './renderer/BuildingRenderer';
 import { ArmyRenderer } from './renderer/ArmyRenderer';
-import { drawHexagon, screenToHexCoords } from './utils/hexUtils';
+import { drawHexagon, screenToHexCoords, hexToPixel } from './utils/hexUtils';
 import {
   MAP_SCALE_MULTIPLIER,
   HEX_BORDER_WIDTH,
@@ -124,8 +124,7 @@ export class Renderer {
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         const tile = state.world![row][col];
-        const x = col * this.hexWidth + (row % 2) * (this.hexWidth / 2) + this.hexWidth / 2;
-        const y = row * (this.hexRadius * 1.5) + this.hexRadius;
+        const { x, y } = hexToPixel(col, row, this.hexRadius, this.hexWidth);
 
         const terrain = new PIXI.Graphics();
         const color = TERRAIN_INFO[tile.terrainType].color;
@@ -296,8 +295,7 @@ export class Renderer {
 
     this.highlightGraphics.clear();
 
-    const x = col * this.hexWidth + (row % 2) * (this.hexWidth / 2) + this.hexWidth / 2;
-    const y = row * (this.hexRadius * 1.5) + this.hexRadius;
+    const { x, y } = hexToPixel(col, row, this.hexRadius, this.hexWidth);
 
     drawHexagon(this.highlightGraphics, x, y, this.hexRadius);
     this.highlightGraphics.stroke({ width: 2, color: 0xFFFFFF, alpha: 0.5 });

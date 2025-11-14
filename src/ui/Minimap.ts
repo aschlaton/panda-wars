@@ -1,7 +1,7 @@
 import * as PIXI from 'pixi.js';
 import type { WorldGrid } from '../world/terrain';
 import { TERRAIN_INFO } from '../world/terrain';
-import { drawHexagon } from '../utils/hexUtils';
+import { drawHexagon, hexToPixel } from '../utils/hexUtils';
 import {
   MINIMAP_WIDTH,
   MINIMAP_OVERLAY_COLOR,
@@ -202,10 +202,7 @@ export class Minimap {
         const tile = world[row][col];
         const minimapTile = getGraphics();
 
-        // Pointy-top hexagon positioning with odd-row offset
-        const x = col * hexWidth + (row % 2) * (hexWidth / 2) + hexWidth / 2;
-        const y = row * (hexRadius * 1.5) + hexRadius;
-
+        const { x, y } = hexToPixel(col, row, hexRadius, hexWidth);
         const minimapX = x * minimapScale;
         const minimapY = y * minimapScale;
 
@@ -220,11 +217,8 @@ export class Minimap {
       for (let col = 0; col < cols; col++) {
         const tile = world[row][col];
 
-        // Render buildings
         if (tile.building) {
-          const x = col * hexWidth + (row % 2) * (hexWidth / 2) + hexWidth / 2;
-          const y = row * (hexRadius * 1.5) + hexRadius;
-
+          const { x, y } = hexToPixel(col, row, hexRadius, hexWidth);
           const minimapX = x * minimapScale;
           const minimapY = y * minimapScale;
 

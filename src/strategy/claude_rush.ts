@@ -3,6 +3,7 @@ import type { Position } from '../types';
 import type { GameState } from '../types';
 import type { Faction } from '../faction/Faction';
 import type { StrategyDecision } from './Strategy';
+import { MAX_ARMIES_PER_TURN, MIN_GARRISON_FOR_ATTACK, MIN_UNITS_TO_SEND, GARRISON_RESERVE } from '../constants';
 
 export class ClaudeRushStrategy extends BaseStrategy {
   makeDecision(faction: Faction, _allFactions: Faction[], state: GameState): StrategyDecision {
@@ -14,11 +15,10 @@ export class ClaudeRushStrategy extends BaseStrategy {
 
     const enemyBuildings = state.allBuildings.filter(b => b.faction !== faction);
     let armiesSent = 0;
-    const maxArmiesPerTurn = 3;
 
     for (const building of faction.buildings) {
-      if (armiesSent >= maxArmiesPerTurn) break;
-      if (building.garrison.length < 5) continue;
+      if (armiesSent >= MAX_ARMIES_PER_TURN) break;
+      if (building.garrison.length < MIN_GARRISON_FOR_ATTACK) continue;
 
       let nearestEnemy = null;
       let nearestDist = Infinity;
@@ -33,8 +33,8 @@ export class ClaudeRushStrategy extends BaseStrategy {
 
       if (!nearestEnemy) continue;
 
-      const unitsToSend = Math.max(3, building.garrison.length - 2);
-      if (unitsToSend >= 3 && building.garrison.length >= unitsToSend) {
+      const unitsToSend = Math.max(MIN_UNITS_TO_SEND, building.garrison.length - GARRISON_RESERVE);
+      if (unitsToSend >= MIN_UNITS_TO_SEND && building.garrison.length >= unitsToSend) {
         armies.push({
           sourceBuilding: building,
           targetBuilding: nearestEnemy,

@@ -1,5 +1,6 @@
 import * as PIXI from 'pixi.js';
 import type { Army } from '../armies/Army';
+import { hexToPixel } from '../utils/hexUtils';
 
 export class ArmyRenderer {
   private hexRadius: number;
@@ -15,25 +16,20 @@ export class ArmyRenderer {
   renderPaths(armies: Army[], graphics: PIXI.Graphics): void {
     for (const army of armies) {
       if (army.path.length > 1) {
-        graphics.moveTo(
-          army.path[0].x * this.hexWidth + (army.path[0].y % 2) * (this.hexWidth / 2) + this.hexWidth / 2,
-          army.path[0].y * (this.hexRadius * 1.5) + this.hexRadius
-        );
+        const start = hexToPixel(army.path[0].x, army.path[0].y, this.hexRadius, this.hexWidth);
+        graphics.moveTo(start.x, start.y);
 
         for (let i = 1; i < army.path.length; i++) {
-          const px = army.path[i].x * this.hexWidth + (army.path[i].y % 2) * (this.hexWidth / 2) + this.hexWidth / 2;
-          const py = army.path[i].y * (this.hexRadius * 1.5) + this.hexRadius;
-          graphics.lineTo(px, py);
+          const p = hexToPixel(army.path[i].x, army.path[i].y, this.hexRadius, this.hexWidth);
+          graphics.lineTo(p.x, p.y);
         }
       }
 
-      const currentX = army.position.x * this.hexWidth + (army.position.y % 2) * (this.hexWidth / 2) + this.hexWidth / 2;
-      const currentY = army.position.y * (this.hexRadius * 1.5) + this.hexRadius;
-      const targetX = army.targetPosition.x * this.hexWidth + (army.targetPosition.y % 2) * (this.hexWidth / 2) + this.hexWidth / 2;
-      const targetY = army.targetPosition.y * (this.hexRadius * 1.5) + this.hexRadius;
+      const current = hexToPixel(army.position.x, army.position.y, this.hexRadius, this.hexWidth);
+      const target = hexToPixel(army.targetPosition.x, army.targetPosition.y, this.hexRadius, this.hexWidth);
 
-      graphics.moveTo(currentX, currentY);
-      graphics.lineTo(targetX, targetY);
+      graphics.moveTo(current.x, current.y);
+      graphics.lineTo(target.x, target.y);
     }
 
     graphics.stroke({ width: 2, color: 0xFFFFFF, alpha: 0.3 });
@@ -42,10 +38,7 @@ export class ArmyRenderer {
   renderSprites(armies: Army[], container: PIXI.Container, getGraphics: () => PIXI.Graphics): void {
     let spriteIndex = 0;
     for (const army of armies) {
-      const col = army.position.x;
-      const row = army.position.y;
-      const x = col * this.hexWidth + (row % 2) * (this.hexWidth / 2) + this.hexWidth / 2;
-      const y = row * (this.hexRadius * 1.5) + this.hexRadius;
+      const { x, y } = hexToPixel(army.position.x, army.position.y, this.hexRadius, this.hexWidth);
 
       const unitType = army.mostCommonUnitType;
       const texture = this.unitTextures.get(unitType);

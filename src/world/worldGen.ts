@@ -377,7 +377,7 @@ export function generateSettlements(world: WorldGrid, playerPositions: Position[
     const col = Math.floor(Math.random() * width);
     const tile = world[row][col];
 
-    // Check if tile is land (not water) and doesn't already have a building
+    // Check if tile is land and doesn't already have a building
     if (tile.terrainType === TerrainType.Water || tile.building) {
       continue;
     }

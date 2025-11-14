@@ -1,7 +1,7 @@
 import type { Unit } from '../units/Unit';
 import type { Building } from '../buildings/Building';
 import type { Strategy } from '../strategy/Strategy';
-import { NEUTRAL_FOOD_SCORE } from '../constants';
+import { NEUTRAL_FOOD_SCORE, UNIT_PENALTY_THRESHOLD, UNIT_PENALTY_AMOUNT } from '../constants';
 
 export class Faction {
   public id: number;
@@ -53,9 +53,8 @@ export class Faction {
 
     if (this.isNeutral) return; // Neutral faction ignores food score changes
 
-    // Apply troop penalty if over 10
-    if (this.units.size > 10) {
-      this.rawFoodScore -= 0.01;
+    if (this.units.size > UNIT_PENALTY_THRESHOLD) {
+      this.rawFoodScore -= UNIT_PENALTY_AMOUNT;
     }
   }
 
@@ -63,9 +62,8 @@ export class Faction {
     if (this.units.delete(unit)) {
       if (this.isNeutral) return; // Neutral faction ignores food score changes
 
-      // Remove troop penalty if still over 10
-      if (this.units.size >= 10) {
-        this.rawFoodScore += 0.01;
+      if (this.units.size >= UNIT_PENALTY_THRESHOLD) {
+        this.rawFoodScore += UNIT_PENALTY_AMOUNT;
       }
     }
   }

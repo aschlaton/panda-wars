@@ -56,6 +56,33 @@ export const TRANSITION_THRESHOLD = 0.5;
 export const COMBAT_TYPE_ADVANTAGE_MULTIPLIER = 1.25;
 export const FAVORED_TERRAIN_MULTIPLIER = 1.15;
 export const DEFENDER_DAMAGE_MULTIPLIER = 0.85;
+export const MAX_COMBAT_ROUNDS = 1000;
+
+// Building defense multipliers
+export const CAPITAL_DEFENSE_MULTIPLIER = 0.75;
+export const STANDARD_BUILDING_DEFENSE_MULTIPLIER = 0.85;
+export const FARM_DEFENSE_MULTIPLIER = 1.0;
+
+// Building settings
+export const DEFAULT_PRODUCTION_INTERVAL = 3;
+export const PRODUCTION_INTERVAL_MIN = 3;
+export const PRODUCTION_INTERVAL_MAX = 5;
+export const CAPITAL_CAPACITY = 25;
+export const DEFAULT_BUILDING_CAPACITY = 10;
+export const NEUTRAL_BUILDING_CAPACITY = 5;
+
+// Strategy settings
+export const MAX_ARMIES_PER_TURN = 3;
+export const MIN_GARRISON_FOR_ATTACK = 5;
+export const MIN_UNITS_TO_SEND = 3;
+export const GARRISON_RESERVE = 2;
+
+// Faction settings
+export const UNIT_PENALTY_THRESHOLD = 10;
+export const UNIT_PENALTY_AMOUNT = 0.01;
+
+// Army settings
+export const ARMY_MOVEMENT_SPEED = 3;
 
 // Food score settings
 export const NEUTRAL_FOOD_SCORE = 0.5;
